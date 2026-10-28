@@ -35,7 +35,7 @@ Per seed (10 attempts each, in [report.json](report.json) `per_source`): 11 of t
 | Retargeted from teleop seeds (this run) | 104 of 140 | 15.2 | unattended wall time, one CPU core |
 | Scripted expert (`sim --families counter_to_sink --episodes 40 --people 0 --res 64`) | 40 of 40 | 3.6 | unattended wall time, one CPU core ([expert_report.json](expert_report.json)) |
 
-`arrival cost` reads this run next to the P3 baseline and reports `seconds_ratio_teleop_over_generated` 4.04 ([cost.json](cost.json)). Dollars are not measured: no cloud usage was metered, so `usd_per_success` is null.
+`arrival cost` reads this run next to the P3 baseline and reports `seconds_ratio_teleop_over_generated` 4.04 and `usd_ratio_teleop_over_generated` 171.0x ($0.0002 vs $0.0342/demo, [cost.json](cost.json), [usage.json](usage.json)).
 
 ## What the seeds turned out to be
 

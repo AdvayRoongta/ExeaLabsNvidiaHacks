@@ -125,12 +125,36 @@ def test_scoped_usage_prices_only_matching_task(out, tmp_path):
     base = _w(tmp_path / "b.json", BASELINE)
     usage = _w(tmp_path / "usage.json", {"scope": {"room": "hero_kitchen", "task": "counter_to_sink"},
                                         "gpu_hour": 2})
-    c = cost.build(out, usage, PRICING, base)["comparison"]
+    rep = cost.build(out, usage, PRICING, base)
+    c = rep["comparison"]
     assert c["generated"]["n_success"] == 7
     assert c["generated"]["usd_per_success"] == round(5 / 7, 4)
+    assert c["usd_ratio_teleop_over_generated"] == round(5.0 / round(5 / 7, 4), 2)
+    md = cost.markdown(rep)
+    assert f"USD, teleop over generated: {c['usd_ratio_teleop_over_generated']}x (estimate)." in md
     usage = _w(tmp_path / "usage.json", {"scope": {"room": "garage", "task": "counter_to_sink"},
                                         "gpu_hour": 2})
     assert cost.build(out, usage, PRICING, base)["comparison"]["generated"]["usd_per_success"] is None
+
+
+def test_collect_rows_finds_single_report_json(tmp_path):
+    run_dir = tmp_path / "single_run"
+    _w(run_dir / "report.json", {
+        "room_id": "hero_kitchen", "attempts": 10, "successes": 10, "seconds": 50.0,
+        "families": {"counter_to_sink": {"attempts": 10, "successes": 10, "seconds": 50.0}}
+    })
+    rep = cost.build(run_dir)
+    assert len(rep["rows"]) == 2
+    assert rep["rows"][0]["room"] == "hero_kitchen"
+    assert rep["rows"][0]["successes"] == 10
+
+
+def test_default_usage_in_out_dir_is_picked_up(out, tmp_path):
+    base = _w(out / "teleop_baseline.json", BASELINE)
+    _w(out / "usage.json", {"scope": {"room": "hero_kitchen", "task": "counter_to_sink"}, "gpu_hour": 2})
+    rep = cost.build(out, pricing_path=PRICING)
+    assert rep["comparison"]["generated"]["usd_per_success"] == round(5 / 7, 4)
+    assert rep["comparison"]["usd_ratio_teleop_over_generated"] == 7.0
 
 
 def test_usage_scope_requires_room_and_task(tmp_path):

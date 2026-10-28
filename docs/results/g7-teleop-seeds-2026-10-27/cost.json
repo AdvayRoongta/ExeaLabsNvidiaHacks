@@ -55,8 +55,13 @@
       "measured": false
     },
     "endpoint": {
-      "usd": null,
-      "measured": false
+      "usd": 0.022,
+      "measured": false,
+      "units": 0.4394,
+      "unit": "CPU-hour",
+      "usd_per_unit": 0.05,
+      "rate_basis": "assumed, not invoiced",
+      "estimate": true
     }
   },
   "teleop_baseline": {
@@ -87,7 +92,7 @@
       "n_success": 104,
       "scope": "task",
       "seconds_per_success": 15.21,
-      "usd_per_success": null,
+      "usd_per_success": 0.0002,
       "usd_measured": false
     },
     "teleop": {
@@ -96,6 +101,7 @@
       "usd_per_success": 0.0342
     },
     "seconds_ratio_teleop_over_generated": 4.04,
+    "usd_ratio_teleop_over_generated": 171.0,
     "note": "generated seconds are local wall time of the generate call; teleop seconds are operator time"
   },
   "metering": {

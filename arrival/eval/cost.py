@@ -152,9 +152,13 @@ def collect_rows(out_dir: str | Path) -> list[dict]:
     """One row per (source, room) and per family where the file has one. Sources overlap: never add across them."""
     out = Path(out_dir)
     rows = []
-    for p in sorted((out / "reports").glob("*.json")):
+    report_paths = sorted((out / "reports").glob("*.json"))
+    single = out / "report.json"
+    if single.is_file() and single not in report_paths:
+        report_paths.insert(0, single)
+    for p in report_paths:
         r = _load(p, "report")
-        room = r.get("room_id", p.stem)
+        room = r.get("room_id", p.stem if p.name != "report.json" else out.name)
         start = len(rows)
         rows.append(_row("report", room, None, r.get("attempts"), r.get("successes"), r.get("seconds"),
                          r.get("human_contacts")))
@@ -274,12 +278,17 @@ def compare(rows: list[dict], dol: dict, tele: dict | None, usage_scope: dict | 
     priced = [v for k, v in dol.items() if v["usd"] is not None and k != "local_cpu"]
     scoped = usage_scope == {"room": tele["room"], "task": tele["task"]}
     gen_usd = round(sum(v["usd"] for v in priced) / n, 4) if scoped and priced else None
+    tele_s = tele.get("seconds_per_success")
+    tele_usd = tele.get("usd_per_success")
+    s_ratio = round(tele_s / gen_s, 2) if tele_s is not None and gen_s else None
+    usd_ratio = round(tele_usd / gen_usd, 2) if tele_usd is not None and gen_usd and gen_usd > 0 else None
     return {"measured": True, "task": tele["task"], "room": tele["room"],
             "generated": {"n_success": n, "scope": "task" if fam else "room", "seconds_per_success": gen_s,
                           "usd_per_success": gen_usd, "usd_measured": bool(gen_usd is not None) and all(v["measured"] for v in priced)},
-            "teleop": {"n_success": tele["n_success"], "seconds_per_success": tele["seconds_per_success"],
-                       "usd_per_success": tele["usd_per_success"]},
-            "seconds_ratio_teleop_over_generated": round(tele["seconds_per_success"] / gen_s, 2) if gen_s else None,
+            "teleop": {"n_success": tele["n_success"], "seconds_per_success": tele_s,
+                       "usd_per_success": tele_usd},
+            "seconds_ratio_teleop_over_generated": s_ratio,
+            "usd_ratio_teleop_over_generated": usd_ratio,
             "note": "generated seconds are local wall time of the generate call; teleop seconds are operator time"}
 
 
@@ -296,6 +305,8 @@ def build(out_dir, usage_path=None, pricing_path="configs/pricing.example.yaml",
     repo = Path(__file__).resolve().parents[2]
     if baseline_path is None and (out / "teleop_baseline.json").exists():
         baseline_path = out / "teleop_baseline.json"
+    if usage_path is None and (out / "usage.json").exists():
+        usage_path = out / "usage.json"
     if pricing_path and not Path(pricing_path).exists() and (repo / pricing_path).exists():
         pricing_path = repo / pricing_path
     tele = teleop_block(load_baseline(baseline_path)) if baseline_path else None
@@ -345,8 +356,11 @@ def markdown(rep: dict) -> str:
               "| | n successful demos | seconds/demo | USD/demo |", "|---|---|---|---|",
               f"| generated ({g['scope']}) | {g['n_success']} | {_f(g['seconds_per_success'])} | "
               f"{_f(g['usd_per_success'])}{est} |",
-              f"| teleop | {t['n_success']} | {t['seconds_per_success']} | {t['usd_per_success']} |", "",
-              f"Seconds, teleop over generated: {_f(c['seconds_ratio_teleop_over_generated'])}x. {c['note']}."]
+              f"| teleop | {t['n_success']} | {t['seconds_per_success']} | {t['usd_per_success']} |", ""]
+        if c.get("seconds_ratio_teleop_over_generated") is not None:
+            L.append(f"Seconds, teleop over generated: {_f(c['seconds_ratio_teleop_over_generated'])}x. {c['note']}.")
+        if c.get("usd_ratio_teleop_over_generated") is not None:
+            L.append(f"USD, teleop over generated: {_f(c['usd_ratio_teleop_over_generated'])}x{est}.")
     return "\n".join(L)
 
 
