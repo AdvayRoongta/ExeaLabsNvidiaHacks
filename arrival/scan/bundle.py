@@ -32,16 +32,13 @@ def is_finite_number(value) -> bool:
 
 def numbers(value, n: int | None = None) -> list[float] | None:
     """`value` as a list of finite floats (exactly n of them when given); None when it is anything else.
-    An int too large for float is not a finite float."""
+    An int too large for float is not a finite float. A number written as a string ("2.4") is not a number: float()
+    would read it, but the twin keeps a wall's own values, and the wall-span check and the sim then fail on the str."""
     if isinstance(value, (str, bytes, dict)) or not isinstance(value, (list, tuple)) or (n is not None and len(value) != n):
         return None
-    try:
-        out = [float(v) for v in value if not isinstance(v, bool)]
-    except (TypeError, ValueError, OverflowError):
+    if not all(is_finite_number(v) for v in value):
         return None
-    if len(out) != len(value) or any(v != v or abs(v) == float("inf") for v in out):
-        return None
-    return out
+    return [float(v) for v in value]
 
 
 def _check_geometry(bundle: dict) -> None:
