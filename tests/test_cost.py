@@ -129,7 +129,7 @@ def test_scoped_usage_prices_only_matching_task(out, tmp_path):
     c = rep["comparison"]
     assert c["generated"]["n_success"] == 7
     assert c["generated"]["usd_per_success"] == round(5 / 7, 4)
-    assert c["usd_ratio_teleop_over_generated"] == round(5.0 / round(5 / 7, 4), 2)
+    assert c["usd_ratio_teleop_over_generated"] == 7.0
     md = cost.markdown(rep)
     assert f"USD, teleop over generated: {c['usd_ratio_teleop_over_generated']}x (estimate)." in md
     usage = _w(tmp_path / "usage.json", {"scope": {"room": "garage", "task": "counter_to_sink"},
@@ -155,6 +155,30 @@ def test_default_usage_in_out_dir_is_picked_up(out, tmp_path):
     rep = cost.build(out, pricing_path=PRICING)
     assert rep["comparison"]["generated"]["usd_per_success"] == round(5 / 7, 4)
     assert rep["comparison"]["usd_ratio_teleop_over_generated"] == 7.0
+
+
+def test_usd_ratio_uses_unrounded_raw_cost_to_prevent_distortion(tmp_path):
+    # Tests that small per-demo costs use unrounded raw cost for the ratio.
+    # If rounded cost (0.0001) were used: 0.0342 / 0.0001 = 342.0x.
+    # With raw cost (0.015 / 104 = 0.00014423...): 0.0342 / (0.015 / 104) = 237.12x.
+    base = _w(tmp_path / "b.json", {
+        "room": "hero_kitchen", "task": "counter_to_sink", "n_success": 104,
+        "operator_seconds_total": 6393, "cost_basis_usd": 3.5568, "setup_assumptions": "mock setup",
+    })
+    run_dir = tmp_path / "distort_run"
+    _w(run_dir / "report.json", {
+        "room_id": "hero_kitchen", "attempts": 104, "successes": 104, "seconds": 1500.0,
+        "families": {"counter_to_sink": {"attempts": 104, "successes": 104, "seconds": 1500.0}}
+    })
+    usage = _w(tmp_path / "usage.json", {
+        "scope": {"room": "hero_kitchen", "task": "counter_to_sink"},
+        "cpu_hour": 0.3
+    })
+    rep = cost.build(run_dir, usage, PRICING, base)
+    c = rep["comparison"]
+    assert c["generated"]["usd_per_success"] == 0.0001
+    assert c["usd_ratio_teleop_over_generated"] == 237.12
+    assert c["usd_ratio_teleop_over_generated"] != 342.0
 
 
 def test_usage_scope_requires_room_and_task(tmp_path):

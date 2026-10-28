@@ -277,11 +277,12 @@ def compare(rows: list[dict], dol: dict, tele: dict | None, usage_scope: dict | 
     gen_s = round(sum(secs) / n, 3) if all(s is not None for s in secs) else None
     priced = [v for k, v in dol.items() if v["usd"] is not None and k != "local_cpu"]
     scoped = usage_scope == {"room": tele["room"], "task": tele["task"]}
-    gen_usd = round(sum(v["usd"] for v in priced) / n, 4) if scoped and priced else None
+    gen_raw = sum(v["usd"] for v in priced) / n if scoped and priced else None
+    gen_usd = round(gen_raw, 4) if gen_raw is not None else None
     tele_s = tele.get("seconds_per_success")
     tele_usd = tele.get("usd_per_success")
     s_ratio = round(tele_s / gen_s, 2) if tele_s is not None and gen_s else None
-    usd_ratio = round(tele_usd / gen_usd, 2) if tele_usd is not None and gen_usd and gen_usd > 0 else None
+    usd_ratio = round(tele_usd / gen_raw, 2) if tele_usd is not None and gen_raw and gen_raw > 0 else None
     return {"measured": True, "task": tele["task"], "room": tele["room"],
             "generated": {"n_success": n, "scope": "task" if fam else "room", "seconds_per_success": gen_s,
                           "usd_per_success": gen_usd, "usd_measured": bool(gen_usd is not None) and all(v["measured"] for v in priced)},
