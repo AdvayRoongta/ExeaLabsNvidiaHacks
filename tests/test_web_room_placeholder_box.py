@@ -21,13 +21,13 @@ def _info(out: Path, name: str, **info) -> None:
     (meta / "info.json").write_text(json.dumps(info), encoding="utf-8")
 
 
-def _room_page(out: Path) -> str:
+def _room_page(out: Path, path: str = "/rooms/hero_kitchen") -> str:
     srv = make_server(port=0, out_dir=out, scans_dir=REPO / "scans")
     t = threading.Thread(target=srv.serve_forever, kwargs={"poll_interval": 0.05}, daemon=True)
     t.start()
     try:
         conn = http.client.HTTPConnection("127.0.0.1", srv.server_address[1], timeout=10)
-        conn.request("GET", "/rooms/hero_kitchen")
+        conn.request("GET", path)
         resp = conn.getresponse()
         assert resp.status == 200
         return resp.read().decode("utf-8")
@@ -55,3 +55,18 @@ def test_the_box_stays_while_the_placeholder_dataset_exists(tmp_path, names):
         _info(tmp_path, name, **(SIM if name.endswith("_sim") else DEMO))
     page = _room_page(tmp_path)
     assert BOX in page and "arrival_physically_valid: false" in page
+
+
+# The front page showed the same placeholder note to every visitor, above physics-checked sim and upload datasets.
+def test_the_front_page_has_no_placeholder_note_when_no_room_has_the_placeholder(tmp_path):
+    _info(tmp_path, "hero_kitchen_sim", **SIM)
+    page = _room_page(tmp_path, "/")
+    assert "not physically valid" not in page
+    assert "keep only the episodes the physics check passes" in page
+
+
+def test_the_front_page_names_the_rooms_that_have_the_placeholder(tmp_path):
+    _info(tmp_path, "hero_kitchen", **DEMO)
+    _info(tmp_path, "hero_kitchen_sim", **SIM)
+    page = _room_page(tmp_path, "/")
+    assert "not physically valid" in page and "Rooms with this placeholder: hero_kitchen." in page
