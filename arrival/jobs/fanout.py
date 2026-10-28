@@ -209,7 +209,9 @@ class NebiusBackendStub:
     container with the `sim` args, `poll` to its status, and the object calls to the S3-compatible API."""
 
     def __getattr__(self, name):
-        raise NotImplementedError(f"NebiusBackendStub.{name}: no Nebius backend is implemented or tested")
+        # TODO: Implement real Nebius backend. See docs/09-later.md.
+        raise NotImplementedError(f"NebiusBackendStub.{name}: Nebius backend is not yet implemented. "
+                                  f"This stub is for local-only testing of the fanout orchestrator.")
 
 
 # ---- orchestration ----
