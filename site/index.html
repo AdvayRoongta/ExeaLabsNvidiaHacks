@@ -87,7 +87,7 @@
     <div class="hero" id="hero">
       <p class="mono eyebrow">Survey <i aria-hidden="true">&rarr;</i> Twin <i aria-hidden="true">&rarr;</i> Simulation <i aria-hidden="true">&rarr;</i> Dataset</p>
       <h1 class="hero__title">Scan a room once. Get robot training data for <span class="dimmed">that exact room.</span></h1>
-      <p class="hero__deck">One scan of a kitchen becomes a physics twin. A robot arm and two walking people run in it, and every successful run is written as a GR00T-format dataset. This page draws from that export. The room on this page is an authored sample; one real kitchen, scanned on an iPhone, has also run through the pipeline.</p>
+      <p class="hero__deck">One scan of a kitchen becomes a physics twin. A robot arm and two walking people run in it, and every successful run is written as a GR00T-format dataset. This page draws from that export. The room is an authored sample; one real kitchen has also been scanned.</p>
       <dl class="titleblock" aria-label="Title block">
         <div><dt>Sheet</dt><dd>A-01 / 06</dd></div>
         <div><dt>Scale</dt><dd>1 : 1, metres</dd></div>
@@ -337,7 +337,7 @@
   <div class="plates" id="plates" aria-label="Dataset figures">
     <article class="plate tilt"><p class="mono plate__k">Frames written</p><p class="plate__v" data-bind="stats.dataset.frames|int"></p><p class="plate__s">across <b data-bind="stats.dataset.episodes"></b> episodes from <b data-bind="stats.families|len"></b> task families</p></article>
     <article class="plate tilt"><p class="mono plate__k">Control rate</p><p class="plate__v"><span data-bind="stats.dataset.fps"></span><small>Hz</small></p><p class="plate__s">this page plays them back resampled to <span data-bind="stats.out_fps"></span> fps</p></article>
-    <article class="plate tilt"><p class="mono plate__k">State and action</p><p class="plate__v"><span data-bind="stats.dataset.state_dim"></span><small class="sep">/</small><span data-bind="stats.dataset.action_dim"></span></p><p class="plate__s">seven joint angles, gripper opening and the base's x, y and yaw (held still on this fixed base), per frame</p></article>
+    <article class="plate tilt"><p class="mono plate__k">State and action</p><p class="plate__v"><span data-bind="stats.dataset.state_dim"></span><small class="sep">/</small><span data-bind="stats.dataset.action_dim"></span></p><p class="plate__s">seven joint angles, gripper and base x, y, yaw, per frame</p></article>
     <article class="plate tilt"><p class="mono plate__k">Cameras</p><p class="plate__v"><span data-bind="stats.dataset.cameras|len"></span><small>at <span data-bind="stats.dataset.resolution|res"></span> px</small></p><p class="plate__s">ego_view and wrist, shown live in the stage</p></article>
   </div>
 </section>
