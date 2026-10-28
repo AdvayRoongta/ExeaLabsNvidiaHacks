@@ -221,10 +221,6 @@ PLACEHOLDER_NOTE = (
     "(arrival_generator = scripted_retarget). It is not physically valid, not "
     "MimicGen, and not a real-robot result."
 )
-SIM_NOTE = (
-    "Sim and upload datasets come from a scripted expert in MuJoCo and keep only the episodes the physics check "
-    "passes. They are simulation, not real-robot results."
-)
 
 
 def esc(value) -> str:
@@ -608,9 +604,8 @@ class Handler(BaseHTTPRequestHandler):
         )
         # PLACEHOLDER_NOTE is about the scripted_retarget dataset `demo` writes to out/datasets/<room>. Shown on every
         # visit, it told a page of physics-checked sim and upload datasets that its motion was "not physically valid"
-        placeholders = [r for r in rooms if (st := self._ds_stats(r)) and st["valid"] is not True]
-        note = (f"<div class='warn'>{esc(PLACEHOLDER_NOTE)} Rooms with this placeholder: "
-                f"{esc(', '.join(placeholders))}.</div>" if placeholders else f"<p class='muted'>{esc(SIM_NOTE)}</p>")
+        placeholder = any((st := self._ds_stats(r)) and st["valid"] is not True for r in rooms)
+        note = f"<div class='warn'>{esc(PLACEHOLDER_NOTE)}</div>" if placeholder else ""
         body = (
             "<h1>Rooms to robot demos</h1><p class='muted'>Pre-scanned rooms become GR00T LeRobot v2 "
             "datasets, generated locally.</p>"

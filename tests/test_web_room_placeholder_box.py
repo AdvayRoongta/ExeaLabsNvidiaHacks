@@ -62,11 +62,10 @@ def test_the_front_page_has_no_placeholder_note_when_no_room_has_the_placeholder
     _info(tmp_path, "hero_kitchen_sim", **SIM)
     page = _room_page(tmp_path, "/")
     assert "not physically valid" not in page
-    assert "keep only the episodes the physics check passes" in page
 
 
-def test_the_front_page_names_the_rooms_that_have_the_placeholder(tmp_path):
+def test_the_front_page_keeps_the_note_while_a_room_has_the_placeholder(tmp_path):
     _info(tmp_path, "hero_kitchen", **DEMO)
     _info(tmp_path, "hero_kitchen_sim", **SIM)
     page = _room_page(tmp_path, "/")
-    assert "not physically valid" in page and "Rooms with this placeholder: hero_kitchen." in page
+    assert "not physically valid" in page
