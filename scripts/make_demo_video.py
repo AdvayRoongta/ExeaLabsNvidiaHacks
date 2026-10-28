@@ -170,25 +170,30 @@ def episode_frames(twin: dict, task: dict, cam_cfg: dict, side: int = 300) -> di
     policy.reset(env, task)
     out = {"view": [], "ego_view": [], "wrist": [], "state": []}
     tail, n_est = 0, 180
-    for t in range(400):
-        obs = env.obs()
-        a = policy.act(obs)
-        k = min(1.0, t / (0.45 * n_est))
-        k = k * k * (3 - 2 * k)
-        cam.distance = cam_cfg["d0"] + (cam_cfg["d1"] - cam_cfg["d0"]) * k
-        big.update_scene(env.data, cam)
-        out["view"].append(big.render().copy())
-        for c in ("ego_view", "wrist"):
-            small.update_scene(env.data, c)
-            out[c].append(small.render().copy())
-        out["state"].append(obs["state"])
-        env.step(a)
-        if getattr(policy, "done", lambda: False)():
-            tail += 1
-            if tail > 10:
-                break
-    ok, detail = env.success(task)
-    out["success"], out["detail"] = ok, detail
+    try:
+        for t in range(400):
+            obs = env.obs()
+            a = policy.act(obs)
+            k = min(1.0, t / (0.45 * n_est))
+            k = k * k * (3 - 2 * k)
+            cam.distance = cam_cfg["d0"] + (cam_cfg["d1"] - cam_cfg["d0"]) * k
+            big.update_scene(env.data, cam)
+            out["view"].append(big.render().copy())
+            for c in ("ego_view", "wrist"):
+                small.update_scene(env.data, c)
+                out[c].append(small.render().copy())
+            out["state"].append(obs["state"])
+            env.step(a)
+            if getattr(policy, "done", lambda: False)():
+                tail += 1
+                if tail > 10:
+                    break
+        ok, detail = env.success(task)
+        out["success"], out["detail"] = ok, detail
+    finally:
+        big.close()
+        small.close()
+        env.close()
     print(f"[video] {task['task_id']}: {len(out['view'])} steps success={ok} {detail}")
     return out
 
