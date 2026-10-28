@@ -546,7 +546,7 @@ The modality config is `configs/gr00t/arrival_panda_config.py` (arm trained as r
 
 Not built yet, and not claimed anywhere in the outputs:
 
-- Field-tested iPhone capture. The app exists (`ios/`, CAP-1) and uploads to `POST /jobs`, but no real kitchen scanned with it is checked in yet. Uploads are processed only by a local `python -m arrival work` process.
+- Field-tested iPhone capture. The app exists (`ios/`, CAP-1) and uploads to `POST /jobs`, and one real kitchen scanned with it is checked in as `tests/fixtures/roomplan/kitchen_real_01.json` (P1), with no tape measurements yet (P2). Uploads are processed only by a local `python -m arrival work` process.
 - MimicGen generation (`arrival/generate/mimicgen.py` is a stub).
 - Gaussian splat training or compositing (`arrival/render/splat.py` is a stub).
 - Cosmos restyle of frames.
