@@ -468,7 +468,7 @@ def collect(twin: dict, families: list[str], episodes: int, out_dir: str | Path 
             planner_name: str = "rule", cache_path: str | Path | None = None,
             split: str = "train", use_generated_instructions: bool = False, base: str = "fixed",
             shard: tuple[int, int] | None = None, resume: bool = False, arm: str = "procedural",
-            exec_noise: float = 0.0, exocentric: bool = False, log=print) -> dict:
+            exec_noise: float = 0.0, exocentric: bool = False, instruction_style: str = "mixed", log=print) -> dict:
     """Collect `episodes` attempts; failed attempts are dropped and counted. A task whose stand spot or reach the
     pre-flight rejects never runs (`skipped_unreachable`, counted per rejected variation), and one whose env build
     or rollout raises is logged with its reason, counted as `skipped_error` and never written, so a bad geometry
@@ -493,7 +493,7 @@ def collect(twin: dict, families: list[str], episodes: int, out_dir: str | Path 
     pre: dict = {}
     tasks = make_tasks(twin, families, episodes, seed=seed, people=people,
                        split=split, use_generated_instructions=use_generated_instructions, mobile=base == "mobile", log=log,
-                       preflight=pre, arm=arm)
+                       preflight=pre, arm=arm, instruction_style=instruction_style)
     lo, hi = shard_range(len(tasks), *shard) if shard else (0, len(tasks))
     if shard:
         out_dir = shard_dir(out_dir, *shard)

@@ -129,11 +129,49 @@ FALLBACK_TEMPLATES = {
 }
 
 
+INSTRUCTION_STYLES = ("mixed", "concise", "polite", "descriptive", "urgent", "goal_oriented")
+
+STYLE_PROMPTS = {
+    "mixed": "a balanced mix of concise, polite, descriptive, urgent, and goal-oriented imperative phrasing",
+    "concise": "short, concise, direct imperative instructions (e.g. 'Put mug in sink', 'Open top drawer')",
+    "polite": "polite, courteous phrasing (e.g. 'Could you please place the mug into the sink?', 'Please open the top drawer')",
+    "descriptive": "detailed, descriptive phrasing referencing objects, surfaces, and actions (e.g. 'Pick up the mug from the counter and place it inside the sink basin')",
+    "urgent": "direct, urgent, time-sensitive phrasing (e.g. 'Immediately move the mug to the sink', 'Quickly pull open the drawer')",
+    "goal_oriented": "purpose-driven, outcome-oriented phrasing (e.g. 'Clear the counter by putting the mug in the sink', 'Prepare the drawer for storage by opening it')",
+}
+
+
+def _style_templates(templates: list[str], style: str, name: str) -> list[str]:
+    base = [t.format(name=name) for t in templates]
+    if style == "mixed":
+        return base
+    styled = []
+    for s in base:
+        clean = s.rstrip(".")
+        if style == "concise":
+            c = re.sub(r"^(Carefully|Gently|Please|Kindly|Now)\s+", "", clean, flags=re.IGNORECASE)
+            styled.append(c + ".")
+        elif style == "polite":
+            styled.append(f"Please {clean[:1].lower() + clean[1:]}.")
+        elif style == "urgent":
+            styled.append(f"Quickly {clean[:1].lower() + clean[1:]}.")
+        elif style == "descriptive":
+            styled.append(f"Carefully {clean[:1].lower() + clean[1:]}.")
+        elif style == "goal_oriented":
+            styled.append(f"To tidy up, {clean[:1].lower() + clean[1:]}.")
+        else:
+            styled.append(s)
+    return styled
+
+
 def _cache_key(family: str, object_name: str | None, fixture_name: str | None,
-               n: int = 8, role: str = "lightning", eval_ratio: float = 0.25) -> str:
+               n: int = 8, role: str = "lightning", eval_ratio: float = 0.25,
+               style: str = "mixed") -> str:
     key = f"{family}::obj={object_name or 'none'}::fx={fixture_name or 'none'}"
     if (n, role, eval_ratio) != (8, "lightning", 0.25):  # defaults keep the plain key
         key += f"::n={n}::role={role}::ev={eval_ratio}"
+    if style != "mixed":
+        key += f"::style={style}"
     return key
 
 
@@ -160,8 +198,9 @@ def save_cache(cache: dict, cache_path: Path | str | None = None) -> None:
 def generate_instructions(family: str, object_name: str | None = None,
                           fixture_name: str | None = None, n: int = 8,
                           role: str = "lightning", eval_ratio: float = 0.25,
+                          style: str = "mixed",
                           cache_path: Path | str | None = None) -> dict[str, list[str]]:
-    """Generate diverse instructions split into 'train' and 'eval' sets.
+    """Generate diverse instructions split into 'train' and 'eval' sets with stylistic variation.
 
     Uses Nemotron Lightning via Nebius Token Factory if available, with offline
     caching and deterministic template fallback. Only real model output is cached: a fallback
@@ -171,7 +210,9 @@ def generate_instructions(family: str, object_name: str | None = None,
         raise ValueError("n must be a positive whole number")
     if type(eval_ratio) not in (int, float) or not math.isfinite(eval_ratio) or not 0 < eval_ratio < 1:
         raise ValueError("eval_ratio must be finite and between 0 and 1")
-    key = _cache_key(family, object_name, fixture_name, n, role, eval_ratio)
+    if style not in INSTRUCTION_STYLES:
+        raise ValueError(f"style must be one of {INSTRUCTION_STYLES}, got {style!r}")
+    key = _cache_key(family, object_name, fixture_name, n, role, eval_ratio, style=style)
     cache = load_cache(cache_path)
     hit = cache.get(key)
     if isinstance(hit, dict) and hit.get("source") != "template_fallback" and hit.get("train"):
@@ -184,10 +225,12 @@ def generate_instructions(family: str, object_name: str | None = None,
     from arrival.models.token_factory import TokenFactoryNotConfigured, complete
 
     name = object_name or fixture_name or "object"
+    style_guidance = STYLE_PROMPTS[style]
     prompt = (
         f"Generate {n} distinct, natural imperative instructions commanding a kitchen robot to perform this task:\n"
         f"Task family: {family}\n"
-        f"Target/object: {name}\n\n"
+        f"Target/object: {name}\n"
+        f"Style: {style_guidance}\n\n"
         f"Output ONLY a valid JSON array of {n} strings, e.g. [\"Do X\", \"Please do Y\"]."
     )
 
@@ -214,12 +257,13 @@ def generate_instructions(family: str, object_name: str | None = None,
     if not instructions:
         source = "template_fallback"
         templates = FALLBACK_TEMPLATES.get(family, WORDINGS.get(family, ["Do task {name}"]))
-        instructions = [t.format(name=name) for t in templates][:n]
+        instructions = _style_templates(templates, style, name)[:n]
 
     # Split into train and held-out evaluation sets; train is never empty (a lone string is train-only)
     eval_count = min(max(1, int(len(instructions) * eval_ratio)), len(instructions) - 1)
     split = {
         "source": source,
+        "style": style,
         "train": instructions[:len(instructions) - eval_count],
         "eval": instructions[len(instructions) - eval_count:],
         **({"error": error} if source == "template_fallback" and error else {}),

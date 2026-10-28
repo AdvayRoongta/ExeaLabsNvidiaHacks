@@ -194,7 +194,8 @@ def room_families(twin: dict) -> tuple[str, ...]:
 
 def make_tasks(twin: dict, families: list[str], n: int, seed: int = 0, people: int = 0, holdout: bool = False,
                split: str = "train", use_generated_instructions: bool = False,
-               mobile: bool = False, log=print, preflight: dict | None = None, arm: str = "procedural") -> list[dict]:
+               mobile: bool = False, log=print, preflight: dict | None = None, arm: str = "procedural",
+               instruction_style: str = "mixed") -> list[dict]:
     """n task variations cycling through the requested families. Every candidate variation first passes the
     pre-flight (`arrival.sim.preflight.check_task`: stand spot inside the room and clear of walls and fixtures, the
     expert's waypoints within `arm`'s reach by an IK solve). When the stand rule's spot fails, the reach planner
@@ -325,11 +326,12 @@ def make_tasks(twin: dict, families: list[str], n: int, seed: int = 0, people: i
         made_by = {}
         if use_generated_instructions:
             from arrival.tasks.instructions import generate_instructions
-            gen = generate_instructions(fam, object_name=v.get("object_label"), fixture_name=v.get("name"))
+            gen = generate_instructions(fam, object_name=v.get("object_label"), fixture_name=v.get("name"),
+                                        style=instruction_style)
             options = gen.get(split, gen.get("train", SIM_WORDINGS[fam]))
             instr = options[rng.randrange(len(options))]
             w = -1  # the generated lists have their own indexing: no template index, and no holdout wording
-            made_by = {"instruction_source": gen.get("source")}
+            made_by = {"instruction_source": gen.get("source"), "instruction_style": instruction_style}
         else:
             words = SIM_WORDINGS[fam]
             w = rng.choice([k for k in range(len(words)) if len(words) <= HOLDOUT_WORDING or (k == HOLDOUT_WORDING) == holdout])

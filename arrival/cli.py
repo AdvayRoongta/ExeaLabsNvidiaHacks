@@ -258,6 +258,9 @@ def cmd_sim(a) -> int:
         print("--split eval needs --instructions nemotron: the template wordings have no eval split for sim "
               "(eval --holdout holds theirs out)", file=sys.stderr)
         return EXIT_USAGE
+    if getattr(a, "instruction_style", "mixed") != "mixed" and getattr(a, "instructions", "template") != "nemotron":
+        print("--instruction-style needs --instructions nemotron: template wordings do not support style variation", file=sys.stderr)
+        return EXIT_USAGE
     if getattr(a, "tavily", False) and getattr(a, "planner", "rule") != "vlm":
         # only VLMPlanner reads the research; with the rule planner the lookups ran and changed nothing
         print("--tavily needs --planner vlm: the research only goes into the Nemotron planner's prompt", file=sys.stderr)
@@ -278,7 +281,8 @@ def cmd_sim(a) -> int:
                       use_generated_instructions=(a.instructions == "nemotron"), base=getattr(a, "base", "fixed"),
                       shard=shard, resume=getattr(a, "resume", False), arm=getattr(a, "arm", "procedural"),
                       exec_noise=getattr(a, "dart", 0.0),
-                      exocentric=getattr(a, "exocentric", False))
+                      exocentric=getattr(a, "exocentric", False),
+                      instruction_style=getattr(a, "instruction_style", "mixed"))
     except ShardError as e:
         print(e, file=sys.stderr)
         return EXIT_USAGE
@@ -827,6 +831,10 @@ def build_parser() -> argparse.ArgumentParser:
                    help="Task planner: rule (deterministic) or vlm (Nemotron via Nebius Token Factory)")
     m.add_argument("--instructions", choices=["template", "nemotron"], default="template",
                    help="Instruction source: template (fixed wordings) or nemotron (varied wordings with train/eval split)")
+    m.add_argument("--instruction-style",
+                   choices=["mixed", "concise", "polite", "descriptive", "urgent", "goal_oriented"],
+                   default="mixed",
+                   help="with --instructions nemotron: prompt style variation for generated instructions")
     m.add_argument("--split", choices=["train", "eval"], default="train",
                    help="with --instructions nemotron: draw the train or the held-out eval wordings "
                         "(the template wordings have no split here; eval --holdout holds theirs out)")
