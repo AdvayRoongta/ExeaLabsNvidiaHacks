@@ -33,7 +33,8 @@ class Policy:
         pass
 
     def act(self, obs: dict) -> np.ndarray:
-        raise NotImplementedError
+        # TODO: Implement actual policy logic. See docs/09-later.md for roadmap.
+        raise NotImplementedError("Policy.act() must be implemented by subclasses")
 
 
 FRIDGE_HOOK_ALONG = 0.015  # eef past the bar axis toward the free edge, so the hand clears the edge
