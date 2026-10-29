@@ -17,8 +17,10 @@ from pathlib import Path
 import numpy as np
 
 from arrival.sim import ik
-from arrival.sim.scene import fridge_mirror
-from arrival.sim.robot import BASE_SPEED, BASE_TURN, FINGER_OPEN, HAND, HOME
+from arrival.sim.geometry import fridge_mirror
+from arrival.sim.robot import BASE_SPEED, BASE_TURN, FINGER_OPEN, FPS, HAND, HOME
+from arrival.sim.stand import front
+from arrival.sim.tasks import SIM_FAMILIES, room_families
 
 MINJERK_PEAK = 1.875  # peak over mean speed of a min-jerk move: sizes a base drive so it never exceeds BASE_SPEED
 STOP_CLEAR = 0.7  # the base waits while a person is this close ahead of it (0.12 pedestal + 0.17 torso + margin)
@@ -431,8 +433,6 @@ class ScriptedExpert(Policy):
     def _drive_and_place(self, env, task: dict, o: float, c: float) -> list[tuple]:
         """counter_to_counter on a mobile base: grasp in front of the object, tuck the object in front of the base
         and above the counter top, drive along the counter front to the target, then place as counter_to_sink does."""
-        from arrival.sim.preflight import front
-
         p = env.body_pos(task["object_id"])
         gz = p[2] + min(0.01, env.obj_half_h(task["object_id"]) * 0.2)
         tgt = env.place_point(task)
@@ -517,8 +517,6 @@ class ScriptedExpert(Policy):
         """Joint-space plan for the waypoints: (targets per step, worst IK position error, peak |joint 7|). Every
         target is 11 wide: 7 arm joints, the gripper, then the base pose (the parked one unless a waypoint drives).
         `start` is the 11-wide target to continue from (default: HOME, gripper open, the parked base)."""
-        from arrival.sim.collect import FPS
-
         q = np.array(HOME)
         plan: list[np.ndarray] = []
         base = env.base_pose()
@@ -664,8 +662,6 @@ class VLMPlanner:
     def _offered_families(twin: dict | None = None) -> tuple[str, ...]:
         """The families whose fixture the twin has (arrival.sim.tasks.room_families), or all of SIM_FAMILIES without a
         twin. The prompt offers these and _parse_plan accepts only these; it once offered 9 of 15 everywhere."""
-        from arrival.sim.tasks import SIM_FAMILIES, room_families
-
         return (room_families(twin) if twin else ()) or SIM_FAMILIES
 
     @staticmethod
@@ -677,8 +673,6 @@ class VLMPlanner:
     def _parse_plan(txt: str, objects: list[str], fixtures: list[str], families: tuple[str, ...] | None = None) -> dict:
         """First JSON object in the reply, checked against the known families (and, when given, the ones the prompt
         offered), objects and fixtures."""
-        from arrival.sim.tasks import SIM_FAMILIES
-
         plan, _ = json.JSONDecoder().raw_decode(txt[txt.index("{"):])
         if not isinstance(plan, dict) or plan.get("family") not in SIM_FAMILIES:
             raise ValueError(f"plan has no known family: {plan!r}")

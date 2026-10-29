@@ -19,6 +19,10 @@ FINGER_FORCE = 40  # N, each finger
 # the wider real hand clears the falling panel; door_z / door_push = close_door push height over the bar and
 # standoff of the eef from the bar centre along the door normal
 HAND = {"flap_bar": 0.015, "flap_up": 0.15, "door_z": 0.04, "door_push": 0.03}
+FPS = 20  # control rate: one action per step
+SUBSTEPS = 25  # 0.002 s physics steps per control step
+HANDLE_ROOT = 0.022  # grasp point out from a pan's ring: pad half-width 0.015 plus 7 mm
+PAD_BELOW_EEF = 0.023  # the finger pads reach this far below the eef site
 ARM_JOINTS = [f"joint{i}" for i in range(1, 8)]
 BASE_JOINTS = ["base_x", "base_y", "base_yaw"]  # MAN-3: planar base on robot_base, room-frame x, y, yaw
 BASE_SPEED, BASE_TURN = 0.3, 0.5  # m/s and rad/s the expert never exceeds, so the data looks like a slow cart

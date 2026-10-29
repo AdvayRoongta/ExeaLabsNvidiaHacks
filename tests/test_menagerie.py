@@ -131,7 +131,7 @@ def test_eval_hands_every_episode_the_requested_arm(twin, tmp_path, monkeypatch)
 
 def test_faucet_stand_spot_is_closer_for_the_real_hand(twin):
     """The real hand's closed fingertips reach 8 mm past the eef, the procedural fingers 23 mm."""
-    from arrival.sim.preflight import ARM_STANDOFF_TRIM, base_pose
+    from arrival.sim.stand import ARM_STANDOFF_TRIM, base_pose
     from arrival.sim.tasks import make_tasks
 
     t = make_tasks(twin, ["turn_on_faucet"], 1, seed=0, people=0, log=lambda *_: None)[0]

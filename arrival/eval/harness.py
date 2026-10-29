@@ -15,7 +15,8 @@ import uuid
 from importlib.metadata import version
 from pathlib import Path
 
-from arrival.sim.collect import FPS, SimEnv, run_episode
+from arrival.sim.collect import SimEnv, run_episode
+from arrival.sim.robot import FPS
 from arrival.eval.manifest import EVAL_SEED_BASE, make_manifest, validate_manifest
 
 

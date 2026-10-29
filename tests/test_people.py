@@ -481,7 +481,8 @@ def test_floor_walk_without_a_counter_stop_keeps_clear_of_the_base(twin, base_to
     keep CLEAR of the base and of a mobile base's drive as the counter-stop loops do, and so do the fridge visitor's
     legs into and out of that loop (24 of these 30 seeds have a visit). Routed round the fixtures alone,
     kitchen_real_01's open_oven at seed 7 started a person 0.20 m from the base centre: contact at step 0."""
-    from arrival.sim.people import CLEAR, _seg_dist
+    from arrival.sim.geometry import point_segment_distance
+    from arrival.sim.people import CLEAR
 
     base = np.array([2.6, 1.0])
     end = base if base_to is None else np.array(base_to)
@@ -490,7 +491,7 @@ def test_floor_walk_without_a_counter_stop_keeps_clear_of_the_base(twin, base_to
         w = Walkers(2, (0.4, 0.4, 3.6, 2.6), seed=seed, base_xy=base, front_y=None, fixtures=twin["fixtures"],
                     base_to=base_to)
         for path in w.paths:
-            near = min(_seg_dist(path[k - 1], path[k], q) for k in range(len(path)) for q in drive)
+            near = min(point_segment_distance(q, path[k - 1], path[k]) for k in range(len(path)) for q in drive)
             assert near >= CLEAR, (seed, round(near, 3))
 
 

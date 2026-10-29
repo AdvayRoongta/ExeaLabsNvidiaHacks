@@ -10,6 +10,7 @@ import mujoco
 import numpy as np
 
 from arrival.sim.safety import YIELD, SafetyMonitor, yield_factor
+from arrival.sim.geometry import fridge_door_frame, point_segment_distance
 
 CLEAR = 0.6  # min distance (m) from the base column for any path segment: 0.12 pedestal + 0.17 torso + margin
 LANE = (0.5, 0.75)  # the crossing lane runs this far behind the base, closer than CLEAR on purpose
@@ -261,13 +262,6 @@ def free_path(rng, floor, prints: Footprints, r: float, n: int = 4, tries: int =
     return pts + back
 
 
-def _seg_dist(a, b, p) -> float:
-    ab = b - a
-    n = float(ab @ ab)
-    t = 0.0 if n < 1e-12 else float(np.clip((p - a) @ ab / n, 0.0, 1.0))
-    return float(np.linalg.norm(a + t * ab - p))
-
-
 def _base_block(base_xy, r: float, base_to=None) -> dict:
     """The robot base, stretched along a mobile base's straight drive to base_to, as a footprint that, grown by a
     walker's radius r, keeps the walker's centre CLEAR from the base centre at every point of the drive (the rule
@@ -291,8 +285,6 @@ def plan_fridge_visit(fixtures, floor, spec: dict, rng, base_xy=None, keep=()) -
     or in a footprint, a stand point or the swing comes within CLEAR of the robot base, the walk from s1 to s2 comes
     inside a `keep` disc (Walkers), or no opening angle keeps the panel clear of the person's body and toes (a wider
     swing moves the panel away from the doorway)."""
-    from arrival.sim.scene import fridge_door_frame
-
     fr = next((f for f in fixtures or [] if f["type"].startswith("fridge")), None)
     if fr is None:
         return None
@@ -325,7 +317,7 @@ def plan_fridge_visit(fixtures, floor, spec: dict, rng, base_xy=None, keep=()) -
         return None
 
     def panel_dist(p, q):  # distance from a stand point to the door panel at angle q
-        return _seg_dist(hinge, hinge + L * _rot(yaw + m * q, (float(m), 0.0)), p)
+        return point_segment_distance(p, hinge, hinge + L * _rot(yaw + m * q, (float(m), 0.0)))
 
     swing = np.linspace(0.0, OPEN_ANGLE[1], 40)
     if (min(panel_dist(s1, q) for q in swing) < r + 0.02
@@ -396,8 +388,8 @@ def _interaction_loop(rng, floor, base_xy, front_y, prints: Footprints | None = 
     def free(prev, nxt, fallback, min_other: bool = False):
         for _ in range(50):
             p = rng.uniform([x0, y0], [x1, y1])
-            if (all(np.linalg.norm(p - q) >= CLEAR and _seg_dist(prev, p, q) >= CLEAR
-                    and _seg_dist(p, nxt, q) >= CLEAR for q in drive) and not (prints and prints.blocked(p, r))
+            if (all(np.linalg.norm(p - q) >= CLEAR and point_segment_distance(q, prev, p) >= CLEAR
+                    and point_segment_distance(q, p, nxt) >= CLEAR for q in drive) and not (prints and prints.blocked(p, r))
                     and not any(np.linalg.norm(p - c) < k for c, k in keep)):
                 if min_other and other_starts:
                     if any(np.linalg.norm(p - s0) < 0.70 for s0 in other_starts):

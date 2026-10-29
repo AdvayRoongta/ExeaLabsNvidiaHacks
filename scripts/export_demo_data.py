@@ -25,7 +25,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from arrival.catalog.objects import OBJECT_SPECS  # noqa: E402
 from arrival.scan import bundle as scan_bundle  # noqa: E402
 from arrival.sim import robot  # noqa: E402
-from arrival.sim.collect import FPS, SUBSTEPS, SimEnv, run_episode  # noqa: E402
+from arrival.sim.collect import SimEnv, run_episode  # noqa: E402
+from arrival.sim.robot import FPS, SUBSTEPS  # noqa: E402
 from arrival.sim.export import BASE_SLICE  # noqa: E402
 from arrival.sim.people import limb_segments  # noqa: E402
 from arrival.sim.policy import ScriptedExpert  # noqa: E402

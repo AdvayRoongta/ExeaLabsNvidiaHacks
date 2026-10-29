@@ -9,7 +9,8 @@ mujoco = pytest.importorskip("mujoco")
 from arrival.export.validate import validate  # noqa: E402
 from arrival.generate.se3_retarget import generate  # noqa: E402
 from arrival.generate.teleop_seeds import GENERATOR, TeleopReplay, load_demos, teleop_sources  # noqa: E402
-from arrival.sim.collect import FPS, SimEnv, run_episode  # noqa: E402
+from arrival.sim.collect import SimEnv, run_episode  # noqa: E402
+from arrival.sim.robot import FPS  # noqa: E402
 from arrival.sim.export import SimDatasetWriter  # noqa: E402
 from arrival.sim.policy import ScriptedExpert  # noqa: E402
 from arrival.sim.tasks import finish_task, make_tasks  # noqa: E402

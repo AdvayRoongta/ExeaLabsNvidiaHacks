@@ -175,8 +175,8 @@ def test_door_pull_keeps_the_wrist_off_the_wall_beside_the_hinge(twin):
     """counter_b's hinge end is drawn 1 cm into the east wall, and the pull ends with the bar 4 cm from it. From the
     usual door spot link7 grazed the wall for 22 steps (0.9 mm); open_door stands OPEN_DOOR_WALL_OUT further out there.
     counter_a keeps the usual spot."""
-    from arrival.sim.preflight import OPEN_DOOR_WALL_OUT, base_pose, park
-    from arrival.sim.scene import front_stand
+    from arrival.sim.stand import OPEN_DOOR_WALL_OUT, base_pose, park
+    from arrival.sim.geometry import front_stand
 
     for fixture, out in (("counter_a", 0.0), ("counter_b", OPEN_DOOR_WALL_OUT)):
         src = next(f for f in twin["fixtures"] if f["id"] == fixture)
@@ -194,8 +194,8 @@ def test_door_pull_keeps_its_spot_when_the_run_stops_at_the_wall(twin):
     of 60 deg."""
     import copy
 
-    from arrival.sim.preflight import OPEN_DOOR_INSIDE, _door_wall_gaps, base_pose, park
-    from arrival.sim.scene import front_stand
+    from arrival.sim.stand import OPEN_DOOR_INSIDE, _door_wall_gaps, base_pose, park
+    from arrival.sim.geometry import front_stand
 
     tw = copy.deepcopy(twin)
     b = next(f for f in tw["fixtures"] if f["id"] == "counter_b")
@@ -254,7 +254,8 @@ def test_open_fridge_is_one_task_per_fridge_and_not_a_default(twin):
 @pytest.mark.parametrize("family,fixture", [("close_drawer", "counter_a"), ("close_drawer", "counter_b"),
                                             ("close_door", "counter_a"), ("close_door", "counter_b")])
 def test_scripted_expert_closes_open_parts(twin, family, fixture):
-    from arrival.sim.collect import DOOR_OPEN, DRAWER_OPEN, run_episode
+    from arrival.sim.collect import DRAWER_OPEN, run_episode
+    from arrival.sim.stand import DOOR_OPEN
     from arrival.sim.policy import ScriptedExpert
 
     joint = f"{fixture}_door" if family == "close_door" else f"{fixture}_drawer0"
@@ -370,8 +371,8 @@ def test_close_door_keeps_the_wrist_off_the_wall_beside_the_hinge(twin):
     close_door now stands CLOSE_DOOR_WALL_ALONG nearer the hinge there. counter_a keeps the usual spot."""
     from arrival.sim.collect import run_episode
     from arrival.sim.policy import ScriptedExpert
-    from arrival.sim.preflight import CLOSE_DOOR_WALL_ALONG, base_pose, park
-    from arrival.sim.scene import front_stand
+    from arrival.sim.stand import CLOSE_DOOR_WALL_ALONG, base_pose, park
+    from arrival.sim.geometry import front_stand
 
     for fixture, shift in (("counter_a", 0.0), ("counter_b", CLOSE_DOOR_WALL_ALONG)):
         src = next(f for f in twin["fixtures"] if f["id"] == fixture)
@@ -407,8 +408,8 @@ def test_close_door_keeps_its_spot_when_the_handle_has_room(twin):
 
     from arrival.sim.collect import run_episode
     from arrival.sim.policy import ScriptedExpert
-    from arrival.sim.preflight import CLOSE_DOOR_FLUSH, _close_door_gaps, base_pose, park
-    from arrival.sim.scene import door_w, front_stand
+    from arrival.sim.stand import CLOSE_DOOR_FLUSH, _close_door_gaps, base_pose, park
+    from arrival.sim.geometry import door_w, front_stand
 
     tw = copy.deepcopy(twin)
     b = next(f for f in tw["fixtures"] if f["id"] == "counter_b")

@@ -16,7 +16,8 @@ import numpy as np
 from arrival.provenance import canonical_sha256, run_record
 from arrival.scan.bundle import resolve_scans, rooms_hint
 from arrival.sim import ik
-from arrival.sim.collect import FPS, SimEnv, run_episode
+from arrival.sim.collect import SimEnv, run_episode
+from arrival.sim.robot import FPS
 from arrival.sim.export import SimDatasetWriter
 from arrival.sim.policy import Policy, ScriptedExpert
 from arrival.sim.tasks import finish_task, make_tasks

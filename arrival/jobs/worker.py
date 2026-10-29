@@ -68,7 +68,7 @@ def worker_id() -> str:
 
 class UnsupportedLayout(RuntimeError):
     """Not one task of the requested families can run in the uploaded room (every candidate failed the pre-flight
-    in `arrival.sim.preflight`). The job fails with a typed status and the reasons, not a traceback."""
+    in `arrival.sim.stand`). The job fails with a typed status and the reasons, not a traceback."""
 
     def __init__(self, message: str, reasons: list[str] | None = None):
         super().__init__(message)

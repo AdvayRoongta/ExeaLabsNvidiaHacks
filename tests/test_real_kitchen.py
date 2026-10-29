@@ -25,7 +25,7 @@ def _bounds(twin):
 
 
 def test_every_fixture_faces_into_the_room(twin):
-    from arrival.sim.preflight import front
+    from arrival.sim.stand import front
 
     lo, hi = _bounds(twin)
     fixtures = [f for f in twin["fixtures"] if f["type"] != "sink"]
@@ -45,7 +45,7 @@ def _cabinet(twin, prefix):
 def test_corner_cabinet_door_stays_out_of_the_blind_corner(twin):
     # F9337652 runs along the east wall into the corner; 11793D80, on the north wall, stands against the last 0.64 m
     # of its front. The door used to be drawn there, hinged beside the neighbour, and it stopped at 0.8 deg
-    from arrival.sim.scene import DRAWER_W, door_hinge_x, door_w, drawer_x, drawers_at_right, front_span, has_drawers
+    from arrival.sim.geometry import DRAWER_W, door_hinge_x, door_w, drawer_x, drawers_at_right, front_span, has_drawers
 
     c, fx = _cabinet(twin, "F9337652"), twin["fixtures"]
     x0, x1 = front_span(c, fx)
@@ -59,7 +59,8 @@ def test_corner_cabinet_door_stays_out_of_the_blind_corner(twin):
 
 def test_narrow_cabinet_is_one_door(twin):
     # CC64C90B is 0.43 m wide: the 0.5 m drawer stack stuck into the dishwasher and the door was -0.07 m wide
-    from arrival.sim.scene import door_w, has_door, has_drawers, part_names
+    from arrival.sim.scene import part_names
+    from arrival.sim.geometry import door_w, has_door, has_drawers
 
     c, fx = _cabinet(twin, "CC64C90B"), twin["fixtures"]
     assert not has_drawers(c, fx) and has_door(c, fx)
@@ -69,7 +70,7 @@ def test_narrow_cabinet_is_one_door(twin):
 
 
 def test_cabinets_away_from_corners_keep_their_layout(twin):
-    from arrival.sim.scene import door_hinge_x, door_w, drawers_at_right, front_span, has_drawers
+    from arrival.sim.geometry import door_hinge_x, door_w, drawers_at_right, front_span, has_drawers
 
     c, fx = _cabinet(twin, "11793D80"), twin["fixtures"]
     assert front_span(c, fx) == pytest.approx((-c["size"][0] / 2, c["size"][0] / 2))

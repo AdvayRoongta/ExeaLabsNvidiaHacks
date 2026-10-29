@@ -250,7 +250,8 @@ def test_spatula_is_pinched_with_the_pads_off_the_counter(twin, family, replaces
     """L26: the 1 cm spatula is held between both pads for every closed step, from the pick to the release, and no
     finger touches the counter it lies on (the old body grasp put the pad tips 1 to 3 mm into the top)."""
     from arrival.sim import menagerie
-    from arrival.sim.collect import PAD_BELOW_EEF, SimEnv
+    from arrival.sim.collect import SimEnv
+    from arrival.sim.robot import PAD_BELOW_EEF
     from arrival.sim.policy import ScriptedExpert
     from arrival.sim.tasks import make_tasks
 

@@ -192,7 +192,7 @@ def test_normal_run_has_finite_positive_distance(twin, tmp_path):
 
 @pytest.mark.parametrize("base", [(1.3, 1.0), (3.2, 1.445)])  # sink run; counter_b drawer near the east wall
 def test_walkers_interact_and_avoid_base(base):
-    from arrival.sim.people import _seg_dist
+    from arrival.sim.geometry import point_segment_distance
 
     floor, front = (0.4, 1.65, 3.6, 2.7), 0.75
     for seed in range(6):
@@ -204,7 +204,7 @@ def test_walkers_interact_and_avoid_base(base):
             assert np.linalg.norm(path[0] - np.array(base)) >= CLEAR  # spawn clear of the base column
             for a, b in zip(path, path[1:] + path[:1]):
                 lane = a is path[2] and b is path[3]
-                assert _seg_dist(a, b, np.array(base)) >= (LANE[0] if lane else CLEAR), (seed, a, b)
+                assert point_segment_distance(np.array(base), a, b) >= (LANE[0] if lane else CLEAR), (seed, a, b)
     once, again = (Walkers(2, floor, seed=3, base_xy=base, front_y=front).paths for _ in range(2))
     assert all(np.allclose(a, b) for pa, pb in zip(once, again) for a, b in zip(pa, pb))
 

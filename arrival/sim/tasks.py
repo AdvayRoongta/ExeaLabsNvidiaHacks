@@ -8,10 +8,10 @@ import math
 import random
 
 from arrival.catalog.objects import GRASPABLE, PICKABLE, TABLE_MOVABLE, WIPE_TOOLS
-from arrival.sim.scene import has_door, has_drawers, is_table
+from arrival.sim.geometry import has_door, has_drawers, is_table
 from arrival.tasks.propose import LIGHTING, POSE_OFFSETS, WORDINGS, top_z
-from arrival.sim.preflight import DISHWASHER_SIDE, check_task
-from arrival.sim.reach import find_shift
+from arrival.sim.reach import check_task, find_shift
+from arrival.sim.stand import DISHWASHER_SIDE
 from arrival.twin.compile import is_counter_host, to_local, to_world
 
 TABLE_MOVE = 0.35  # how far along the table edge move_on_table carries the object (m)
@@ -197,7 +197,7 @@ def make_tasks(twin: dict, families: list[str], n: int, seed: int = 0, people: i
                mobile: bool = False, log=print, preflight: dict | None = None, arm: str = "procedural",
                instruction_style: str = "mixed") -> list[dict]:
     """n task variations cycling through the requested families. Every candidate variation first passes the
-    pre-flight (`arrival.sim.preflight.check_task`: stand spot inside the room and clear of walls and fixtures, the
+    pre-flight (`arrival.sim.reach.check_task`: stand spot inside the room and clear of walls and fixtures, the
     expert's waypoints within `arm`'s reach by an IK solve). When the stand rule's spot fails, the reach planner
     (`arrival.sim.reach.find_shift`) looks for a nearby spot that works and the variation keeps it as `base_shift`;
     one with none is logged with its reason and never becomes a task, and a family left with none is skipped. mobile=True means the base drives (MAN-3): a
@@ -240,7 +240,7 @@ def make_tasks(twin: dict, families: list[str], n: int, seed: int = 0, people: i
                     pool.append({"object_id": o["id"], "object_label": o["label"], "source": src["id"],
                                  "target": tgt["id"], "target_x": tx, "target_y": ty, "start": list(o["position"])})
         elif fam == "put_in_drawer":
-            from arrival.sim.scene import drawer_x
+            from arrival.sim.geometry import drawer_x
             for o in twin["objects"]:
                 if o["catalog_id"] != "mug":
                     continue

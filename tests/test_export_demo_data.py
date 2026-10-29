@@ -14,7 +14,7 @@ from conftest import REPO  # noqa: E402
 
 sys.path.insert(0, str(REPO / "scripts"))
 import export_demo_data  # noqa: E402
-from arrival.sim.collect import FPS  # noqa: E402
+from arrival.sim.robot import FPS  # noqa: E402
 from arrival.sim.export import STATE_DIM  # noqa: E402
 
 

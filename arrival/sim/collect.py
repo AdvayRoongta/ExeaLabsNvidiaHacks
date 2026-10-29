@@ -11,23 +11,21 @@ import mujoco
 import numpy as np
 
 from arrival.sim import menagerie, robot
+from arrival.sim.robot import FPS, HANDLE_ROOT, PAD_BELOW_EEF, SUBSTEPS
 from arrival.sim.people import Walkers, frame
 from arrival.sim.safety import SafetyMonitor
 from arrival.catalog.objects import HANDLE_HELD, RIM_HELD, THIN_HELD
 from arrival.sim.export import STATE_DIM
-from arrival.sim.preflight import DRAWER_OPEN_PUT, base_pose, corners, drive_spot, front, mobile_drive, place_point, rack_spot
+from arrival.sim.stand import DOOR_OPEN, DRAWER_OPEN_PUT, base_pose, corners, drive_spot, front, mobile_drive, place_point, rack_spot
 from arrival.sim.scene import BOWL_WALL, DOOR_FLAT, PLATE_FLOOR, PLATE_RIM, RACK_OUT, build_mjcf
 from arrival.twin.compile import is_counter_host, to_local
 from arrival.provenance import run_record
+from arrival.sim.scene import RACK_Z
+from arrival.sim.scene import CARCASS_H
 
-FPS = 20
-SUBSTEPS = 25  # 0.002 s physics -> 20 Hz control
 SETTLE_STEPS = 12
 DRAWER_OPEN = 0.30  # start state (m) for close_drawer; open_drawer counts > 0.15 as open
-HANDLE_ROOT = 0.022  # grasp point out from a pan's ring: pad half-width 0.015 plus 7 mm
-PAD_BELOW_EEF = 0.023  # the finger pads reach this far below the eef site (robot.py hand geometry)
 PAD_CLEAR = 0.003  # pad tips over the counter when pinching a flat object: lower and they drag on the top
-DOOR_OPEN = np.radians(70)  # start state for close_door; open_door counts > 60 deg as open
 FRIDGE_OPEN = np.radians(60)  # open_fridge counts the door open past this, the same bar as open_door
 SKIP_REASONS_KEPT = 50  # reasons kept in the report and the dataset info
 WIPE_MIN = 0.4  # metres the sponge must travel pressed to the counter for wipe_counter to count
@@ -249,8 +247,6 @@ class SimEnv:
     def _rack_spot(self, task: dict):
         """(xy, z of an object's base) in the middle of the part of the rack that is out past the dishwasher front,
         computed from the twin (before the model exists)."""
-        from arrival.sim.scene import RACK_Z
-
         return np.array(rack_spot(self.fx[task["fixture"]])), RACK_Z + 0.01
 
     def rack_place_point(self, task: dict) -> np.ndarray:
@@ -392,8 +388,6 @@ class SimEnv:
 
 
 def robot_drawer_z() -> float:
-    from arrival.sim.scene import CARCASS_H
-
     return CARCASS_H - 0.01
 
 
