@@ -40,6 +40,9 @@ DOOR_KEEP = 0.3  # m past the panel's width that walkers keep from the hinge (th
 
 
 class SimEnv:
+    """One task's MuJoCo episode in the twin: builds the scene (arm, moving parts, walkers, cameras), sets the task's
+    start state, steps physics at FPS with SUBSTEPS per action, renders observations and judges success with the
+    physics. Close it to free the renderers."""
     def __init__(self, twin: dict, task: dict, res: int = 128, cameras=("ego_view", "wrist"), overview: bool = False,
                  base: str = "fixed", arm: str = "procedural"):
         if base not in BASE_MODES:
@@ -219,6 +222,8 @@ class SimEnv:
         return place_point(self.twin, task)
 
     def pull_axis(self, task: dict) -> np.ndarray:
+        """The outward horizontal normal of the part the task works on (the fixture's front, or the counter's front for
+        the faucet)."""
         if task["family"] == "turn_on_faucet":  # the lever is pushed from in front of the counter run the sink is set in
             return front(self.anchor)
         return front(self.fx[task["fixture"]])
@@ -290,6 +295,8 @@ class SimEnv:
         self.safety.update(self.model, self.data, getattr(self.walkers, "driven_geoms", ()))
 
     def render(self, cam: str, big: bool = False) -> np.ndarray:
+        """One RGB frame from camera `cam`, at the dataset resolution or, with big=True, from the 480x360 overview
+        renderer (built only with overview=True)."""
         r = self.big if big else self.renderer
         r.update_scene(self.data, cam)
         return r.render().copy()
@@ -309,6 +316,7 @@ class SimEnv:
         self.renderer = self.big = None
 
     def obs(self) -> dict:
+        """The policy's observation: the state vector and one frame per dataset camera."""
         o = {"state": self.state()}
         for c in self.cameras:
             o[c] = self.render(c)
@@ -316,6 +324,8 @@ class SimEnv:
 
     # ---- physics success ----
     def success(self, task: dict) -> tuple[bool, dict]:
+        """Whether the task is done in the physics right now, per family (object resting at the target, drawer or door
+        past its open or closed bar, lever lifted, sponge travel), with the measurements behind the verdict."""
         fam = task["family"]
         if fam == "move_on_table":  # resting on the table top within 6 cm of the target spot, nearly still
             oid = task["object_id"]

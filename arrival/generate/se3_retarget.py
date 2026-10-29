@@ -30,6 +30,7 @@ BRIDGE_STEPS = 20  # one second at 20 Hz, zero velocity/acceleration at each end
 
 
 def pose(position, rotation) -> np.ndarray:
+    """The 4x4 rigid transform with this rotation and translation."""
     t = np.eye(4)
     t[:3, :3], t[:3, 3] = rotation, position
     return t
@@ -46,12 +47,15 @@ def rigid(value) -> np.ndarray:
 
 
 def inverse(t) -> np.ndarray:
+    """The inverse of a rigid transform (checked to be rigid first)."""
     t = rigid(t)
     r = t[:3, :3].T
     return pose(-r @ t[:3, 3], r)
 
 
 def sink_frame(env, task) -> np.ndarray:
+    """The target sink's frame in the world: its centre, turned by its yaw. Only counter_to_sink tasks with a sink
+    target are supported."""
     sink = env.fx[task["target"]]
     if task["family"] != "counter_to_sink" or sink["type"] != "sink":
         raise ValueError("SE(3) retargeting supports counter_to_sink with a sink target only")
@@ -154,6 +158,9 @@ def record_source(env, task: dict, policy=None, generator: str = "mujoco_scripte
 
 
 def validate_source(source):
+    """Check that a recorded source demonstration can be retargeted: a schema-1 counter_to_sink recording at the sim's
+    control rate, rigid frames, a matching content hash, an object segment followed by a sink segment, and gripper
+    openings in range. Raises ValueError otherwise."""
     if (not isinstance(source, dict) or source.get("schema_version") != 1
             or source.get("family") != "counter_to_sink" or source.get("fps") != FPS):
         raise ValueError("source must be a counter_to_sink SE(3) recording at 20 Hz")

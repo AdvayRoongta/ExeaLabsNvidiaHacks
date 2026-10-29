@@ -27,6 +27,10 @@ class SubsetError(ValueError):
 
 def subset_dataset(src: str | Path, out_dir: str | Path = "out", families: list[str] | None = None,
                    min_drawer_opening: float | None = None, log=print) -> dict:
+    """Copy the episodes of a sim dataset that pass the rules (family in `families`; for open_drawer, a recorded opening
+    of at least `min_drawer_opening` m) into a new dataset under `out_dir`, renumbered and with fresh stats. Returns
+    {dataset, info, kept, dropped} where dropped counts the episodes each rule removed. Raises SubsetError on bad
+    input."""
     from arrival.sim.export import SimDatasetWriter
 
     if min_drawer_opening is not None and (type(min_drawer_opening) not in (int, float) or

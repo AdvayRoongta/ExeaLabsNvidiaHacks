@@ -44,6 +44,7 @@ class _Findings:
         self._seen: set[tuple] = set()
 
     def err(self, code: str, msg: str) -> None:
+        """Record an error once (the same code and message are kept only the first time), up to MAX_ERRORS."""
         if (code, msg) not in self._seen and len(self.errors) < MAX_ERRORS:
             self._seen.add((code, msg))
             self.errors.append({"code": code, "msg": msg})
@@ -398,6 +399,8 @@ def check_loader(root: str | Path) -> dict:
 
 
 def format_report(root, res: dict) -> str:
+    """The loader check as text: PASS or FAIL, a summary of what was read (episodes, frames, cameras, action windows,
+    relative action range), then every warning and error."""
     i = res["info"]
     lines = [f"loader check: {root}: {'PASS' if res['ok'] else 'FAIL'}"]
     if i:

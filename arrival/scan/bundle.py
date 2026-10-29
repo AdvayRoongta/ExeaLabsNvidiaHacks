@@ -105,6 +105,8 @@ def _check_geometry(bundle: dict) -> None:
 
 
 def validate(bundle: dict) -> dict:
+    """Check a ScanBundle's header (schema, units, frame, geometry source, room id) and that every list and entry has
+    the shape the compiler reads; returns the bundle. Raises ScanBundleError on the first problem."""
     if not isinstance(bundle, dict):
         raise ScanBundleError(f"a scan bundle is a JSON object, got {type(bundle).__name__}")
     if bundle.get("schema_version") != "1":

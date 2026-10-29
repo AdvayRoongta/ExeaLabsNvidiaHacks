@@ -72,6 +72,8 @@ def run_demo(room: str = "hero_kitchen", episodes: int = 4, videos: str = "all",
 
 
 def cmd_demo(a) -> int:
+    """`arrival demo`: write the scripted placeholder dataset for one room and print where it went. Exit code 0, or 2
+    for bad arguments."""
     if a.episodes < 1:
         print("--episodes must be >= 1", file=sys.stderr)
         return EXIT_USAGE
@@ -87,6 +89,8 @@ def cmd_demo(a) -> int:
 
 
 def cmd_validate(a) -> int:
+    """`arrival validate`: structural check of a LeRobot v2 dataset; with --episodes, --frames, --drop or --json also
+    the per-episode quality pass. Exit code 0 valid, 1 invalid or flagged, 2 usage error."""
     from arrival.export.validate import validate
 
     per_episode = a.episodes or a.frames or bool(a.drop) or bool(a.json)  # --json alone used to write nothing
@@ -129,6 +133,8 @@ def cmd_validate(a) -> int:
 
 
 def cmd_serve(a) -> int:
+    """`arrival serve`: run the local web page until interrupted. Exit code 2 for bad limits or a port that cannot be
+    bound."""
     if not 0 <= a.port <= 65535:
         print("--port must be 0-65535 (0 = any free port)", file=sys.stderr)
         return EXIT_USAGE

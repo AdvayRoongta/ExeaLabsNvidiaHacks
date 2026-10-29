@@ -21,6 +21,8 @@ REDACTED = "[redacted]"
 
 @dataclass(frozen=True)
 class Setting:
+    """One environment variable Arrival reads: which module reads it, whether its value is secret (never printed,
+    scrubbed by redact), and its default."""
     used_by: str
     secret: bool = False
     default: str | None = None

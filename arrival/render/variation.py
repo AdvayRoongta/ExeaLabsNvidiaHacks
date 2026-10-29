@@ -50,6 +50,7 @@ def _gray(img: np.ndarray) -> np.ndarray:
 
 
 def edge_map(img: np.ndarray) -> np.ndarray:
+    """Gradient magnitude of the frame's grey levels: where its edges are, independent of colour."""
     g = np.pad(_gray(img), 1, mode="edge")
     gx = g[1:-1, 2:] - g[1:-1, :-2]
     gy = g[2:, 1:-1] - g[:-2, 1:-1]
@@ -57,6 +58,8 @@ def edge_map(img: np.ndarray) -> np.ndarray:
 
 
 def edge_correlation(a: np.ndarray, b: np.ndarray) -> float:
+    """Pearson correlation of two frames' edge maps: near 1 when a restyle kept the geometry. Two flat frames count as
+    1, one flat frame as 0."""
     ea, eb = edge_map(a).ravel(), edge_map(b).ravel()
     if ea.std() < 1e-9 or eb.std() < 1e-9:
         return 1.0 if ea.std() < 1e-9 and eb.std() < 1e-9 else 0.0
@@ -76,6 +79,9 @@ def masked_change(a: np.ndarray, b: np.ndarray, mask: np.ndarray | None) -> floa
 
 def check_frame(orig: np.ndarray, var: np.ndarray, mask: np.ndarray | None = None,
                 edge_min: float = EDGE_CORR_MIN, mask_max: float = MASK_CHANGE_MAX) -> dict:
+    """Whether a varied frame may replace the original: same shape and dtype, actually changed, edges still correlated
+    at least `edge_min` with the original, and the masked region changed by at most `mask_max` (masked_change).
+    Returns ok, the reason when not, and both measurements."""
     if var.shape != orig.shape:
         return {"ok": False, "reason": f"shape {list(var.shape)} != {list(orig.shape)}",
                 "edge_corr": None, "mask_change": None}
@@ -128,6 +134,7 @@ class LocalStub:
         self.seed = seed
 
     def params(self, episode_index: int, frame_index: int) -> dict:
+        """The stub's colour jitter for one frame, seeded by episode and frame so a rerun gives the same variation."""
         rng = np.random.default_rng(_u64("stub", episode_index, frame_index, self.seed))
         return {"brightness": round(float(rng.uniform(0.8, 1.2)), 4), "contrast": round(float(rng.uniform(0.8, 1.25)), 4),
                 "hue_deg": round(float(rng.uniform(-15, 15)), 3),

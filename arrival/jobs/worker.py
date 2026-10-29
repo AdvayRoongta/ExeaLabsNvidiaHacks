@@ -134,6 +134,7 @@ class Meter:
         self.seconds: dict[str, float] = {}
 
     def enter(self, stage: str | None) -> None:
+        """Start timing `stage` (None stops timing) and add the time since the last call to the stage that was running."""
         now = time.monotonic()
         if self.stage is not None:
             self.seconds[self.stage] = round(self.seconds.get(self.stage, 0.0) + now - self.t_stage, 3)

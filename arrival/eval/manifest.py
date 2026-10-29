@@ -24,6 +24,9 @@ def digest(value) -> str:
 def make_manifest(twin: dict, families: list[str], episodes: int, seed: int = 0, people: int = 2,
                   holdout: bool = False, res: int = 128, log=print, base: str = "fixed",
                   arm: str = "procedural") -> dict:
+    """Freeze the inputs of an evaluation: the twin, the settings and every trial's finished task, each family drawn
+    from its own held-out seed. Families with no reachable task are listed as omitted. The result carries
+    manifest_id, the hash of everything else, so a replay can prove it ran the same trials."""
     from arrival.sim.tasks import finish_task, make_tasks
 
     if any(type(value) is not int or value < minimum for value, minimum in
@@ -52,6 +55,8 @@ def make_manifest(twin: dict, families: list[str], episodes: int, seed: int = 0,
 
 
 def validate_manifest(manifest: dict) -> dict:
+    """Check that a manifest is the current schema, that its hashes match its contents and that its settings and tasks
+    are well formed; returns it unchanged. Raises ValueError on the first problem."""
     if (not isinstance(manifest, dict) or type(manifest.get("schema_version")) is not int or
             manifest["schema_version"] != SCHEMA_VERSION):
         raise ValueError("unsupported evaluation manifest schema")

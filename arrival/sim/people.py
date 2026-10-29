@@ -126,6 +126,8 @@ def _cap(name: str, r: float, a, b, rgba: str) -> str:
 
 
 def person_xml(i: int, seed: int = 0) -> str:
+    """MJCF for walker i: a mocap body of capsules (pelvis, torso, neck, limbs) and spheres (head, hair), proportioned
+    and coloured by person_spec(seed, i). The limbs are posed each step by Walkers."""
     s = person_spec(seed, i)
     p = f"person_{i}"
     limbs = limb_segments(s, 0.0, 0.0)
@@ -162,6 +164,8 @@ class Footprints:
         return out
 
     def blocked(self, pts, r: float) -> bool:
+        """Whether any of the points, grown by radius r, falls inside a fixture footprint (each box tested in its own
+        rotated frame)."""
         if not len(self.a):
             return False
         pts = np.atleast_2d(pts)

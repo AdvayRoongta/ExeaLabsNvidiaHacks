@@ -30,6 +30,8 @@ def task_slot(attempt_index: int) -> int:
 
 
 def target_point(task: dict, twin: dict) -> list[float]:
+    """Where the scripted trajectory sets the object down: just above the sink for counter_to_sink, resting on the
+    target counter top otherwise."""
     fixtures = {f["id"]: f for f in twin["fixtures"]}
     target = fixtures[task["target_fixture_id"]]
     if task["family"] == "counter_to_sink":
@@ -128,6 +130,8 @@ def judge(attempt: dict) -> bool:
 
 
 def make_attempt(attempt_index: int, task: dict, twin: dict, seeds: dict) -> dict:
+    """One scripted attempt: the task's seed trajectory retargeted to its start pose and target (a scripted miss at
+    every 10th index), judged by the oracle."""
     miss = is_miss(attempt_index)
     target = target_point(task, twin)
     seed_start, seed_frames = seeds[seed_key(task)]

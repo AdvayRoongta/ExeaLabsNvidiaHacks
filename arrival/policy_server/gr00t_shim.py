@@ -70,6 +70,9 @@ def to_chunk(action: dict, reduce: str = "mean") -> np.ndarray:
 
 
 def make_handler(policy, samples: int = 1, reduce: str = "mean"):
+    """The HTTP handler class for the shim: GET /health, and POST /act, which decodes the request, asks `policy` for
+    `samples` action-chunk draws and reduces them to one chunk by their mean or median (`reduce`), answering in the
+    protocol's wire format. Calls into the policy are serialised, since Gr00tPolicy is not thread-safe."""
     lock = threading.Lock()  # the server is threaded; Gr00tPolicy is not safe to call from two requests at once (HTTP 500)
 
     class Handler(BaseHTTPRequestHandler):

@@ -176,6 +176,7 @@ def _cache_key(family: str, object_name: str | None, fixture_name: str | None,
 
 
 def load_cache(cache_path: Path | str | None = None) -> dict:
+    """The instruction cache, or {} when the file is missing or unreadable (the generator then falls back to templates)."""
     p = Path(cache_path) if cache_path else DEFAULT_CACHE
     if p.is_file():
         try:
@@ -187,6 +188,7 @@ def load_cache(cache_path: Path | str | None = None) -> dict:
 
 
 def save_cache(cache: dict, cache_path: Path | str | None = None) -> None:
+    """Write the instruction cache. A failed write is ignored: the cache only saves API calls."""
     p = Path(cache_path) if cache_path else DEFAULT_CACHE
     try:
         p.parent.mkdir(parents=True, exist_ok=True)

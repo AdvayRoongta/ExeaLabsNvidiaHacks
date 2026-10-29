@@ -137,6 +137,7 @@ def evaluate(twin: dict | None = None, families: list[str] | None = None, episod
 
 
 def table(report: dict) -> str:
+    """The eval report as a fixed-width text table, one row per family and a total row."""
     head = (f"{'family':<20}{'ep':>4}{'succ':>6}{'rate':>7}  {'wilson95':<16}{'sim_s':>7}{'wall_s':>8}{'contact':>9}"
             f"{'min_d_m':>9}{'ik_err':>8}{'arm_hit':>9}{'arm_mm':>8}{'obs':>5}")
     lines = [head]

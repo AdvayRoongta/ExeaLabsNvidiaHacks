@@ -69,6 +69,7 @@ class FanoutConfig:
             raise ShardError("exocentric must be true or false")
 
     def sim_args(self, i: int) -> list[str]:
+        """The `arrival sim` arguments that run shard i of this fan-out, resumable."""
         args = ["sim", "--room", self.room, "--families", self.families, "--episodes", str(self.episodes),
                 "--people", str(self.people), "--res", str(self.res), "--seed", str(self.seed),
                 "--scans", str(self.scans), "--shard", f"{i}/{self.shards}", "--resume"]
@@ -82,6 +83,9 @@ class FanoutConfig:
 
 
 class Backend(Protocol):
+    """What `run_fanout` needs from a job backend: start a shard, poll it, copy its output into object storage, and read
+    and write that storage. LocalBackend runs subprocesses over a folder; NebiusBackend runs Serverless AI Jobs over
+    a bucket."""
     def submit(self, cfg: FanoutConfig, i: int) -> str:
         """Start shard i; return a job id."""
 
@@ -225,6 +229,8 @@ def shard_prefix(cfg: FanoutConfig, i: int) -> str:
 
 
 def require_shard_artifacts(backend: Backend, cfg: FanoutConfig, i: int) -> None:
+    """Raise ShardError unless the shard's copied output has its dataset's info.json and episodes.jsonl: a done marker
+    is only written for a shard whose files are really there."""
     base = f"{shard_prefix(cfg, i)}/datasets/{cfg.room}_sim/meta"
     for name in ("info.json", "episodes.jsonl"):
         if not backend.exists(f"{base}/{name}"):

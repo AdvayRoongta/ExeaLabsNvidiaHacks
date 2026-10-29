@@ -16,6 +16,8 @@ class CompareError(ValueError):
 
 
 def load_rows(run: str | Path) -> list[dict]:
+    """The trial rows of one eval run (its folder or its episodes.jsonl), checked to be an eval run's rows (not a
+    LeRobot dataset's file of the same name) with unique trial indexes. Raises CompareError otherwise."""
     path = Path(run)
     if path.is_dir():
         path = path / "episodes.jsonl"
@@ -58,6 +60,9 @@ def sign_test_p(wins: int, losses: int) -> float:
 
 
 def compare(run_a: str | Path, run_b: str | Path) -> dict:
+    """Pair the trials of two runs that replayed the same manifest and count, per family and in total, the successes of
+    each and the trials only one of them won, with the exact sign test's p. Raises CompareError when the trials do
+    not pair up."""
     a, b = load_rows(run_a), load_rows(run_b)
     if a[0]["manifest_id"] != b[0]["manifest_id"]:
         raise CompareError("the runs replayed different manifests; their trials are not the same")
@@ -84,6 +89,7 @@ def compare(run_a: str | Path, run_b: str | Path) -> dict:
 
 
 def table(res: dict) -> str:
+    """The comparison as a fixed-width text table, one row per family and a total row."""
     head = f"A = {res['a_checkpoint']}   B = {res['b_checkpoint']}   manifest {res['manifest_id'][:12]}"
     lines = [head, f"{'':<20}{'trials':>7}{'A':>7}{'B':>7}{'A won':>7}{'B won':>7}{'p':>9}"]
     for name, r in {**res["families"], "total": res["total"]}.items():

@@ -34,6 +34,9 @@ def config() -> dict:
 
 def complete(messages: list[dict], role: str = "super", model: str | None = None,
              timeout: float = 60.0, **params) -> str:
+    """One chat completion from Nebius Token Factory: the model for `role` (or `model`), `messages` and any extra
+    request parameters. Returns the reply's text. Raises TokenFactoryNotConfigured without a key or model id, and
+    ValueError when the reply has no text (no choices, null content or an error object)."""
     cfg = config()
     if not cfg["api_key"]:
         raise TokenFactoryNotConfigured("TOKEN_FACTORY_API_KEY is not set. See docs/08-access.md.")

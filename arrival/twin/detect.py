@@ -76,6 +76,8 @@ class DetectionClient:
         return h.hexdigest()[:24]
 
     def read(self, frame: rgbd.Frame) -> tuple[list | None, str]:
+        """The detections in one frame and where they came from: the cached reply when there is one, else a live call to
+        the omni model (cached on success). Unconfigured, offline or failed calls return None and the reason."""
         key = self.key(frame.rgb)
         hit = self.entries.get(key)
         if isinstance(hit, dict):

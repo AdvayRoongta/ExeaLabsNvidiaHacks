@@ -93,6 +93,8 @@ def chunk_of(episode_index: int, chunks_size: int = CHUNKS_SIZE) -> int:
 
 
 def wants_video(policy: str, episode_index: int) -> bool:
+    """Whether an episode gets an mp4 under a video policy: all of them, every SPARSE_EVERY-th for sparse, none for
+    none."""
     if policy == "all":
         return True
     if policy == "sparse":
@@ -178,6 +180,9 @@ def _merge_stats(items: list[dict]) -> dict:
 
 
 class LeRobotWriter:
+    """Writes a GR00T LeRobot v2.1 dataset one episode at a time (parquet, mp4 per camera as the video policy says, meta
+    rows), then the meta files at `finish`. Used by the scripted placeholder; sim episodes go through
+    arrival.sim.export.SimDatasetWriter, which shares this module's helpers."""
     def __init__(self, root: str | Path, room_id: str, video_policy: str, fps: int = 20,
                  room_center_x: float = 2.0, state_dim: int = 8, action_dim: int = 8,
                  modality: dict | None = None, video_keys: list[str] | None = None,
@@ -336,6 +341,8 @@ class LeRobotWriter:
                                 sidecar={"task_id": task["task_id"], "frames": frames})
 
     def features(self) -> dict:
+        """The info.json `features` block: state and action, a video feature per camera when every episode has video,
+        and the scalar columns."""
         feats = {
             "observation.state": {"dtype": "float32", "shape": [self.state_dim]},
             "action": {"dtype": "float32", "shape": [self.action_dim]},
@@ -362,6 +369,8 @@ class LeRobotWriter:
         self.close()
 
     def finish(self, attempts: int) -> dict:
+        """Close the writers and write every meta file (tasks, episodes, per-episode and dataset stats, modality,
+        embodiment, info). Returns the info.json dict."""
         self.close()
         meta = self.root / "meta"
         with open(meta / "tasks.jsonl", "w") as f:

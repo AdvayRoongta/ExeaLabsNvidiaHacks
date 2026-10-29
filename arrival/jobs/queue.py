@@ -118,6 +118,8 @@ def read_status(job_dir: Path) -> dict | None:
 
 
 def read_job(jobs_root: Path, job_id: str) -> dict | None:
+    """A job's status.json, or None for an id that is not a job id (so no path outside jobs/ is ever read) or a job that
+    does not exist. Retries briefly while Windows has the file locked mid-replace."""
     if not isinstance(job_id, str) or re.fullmatch(r"job_[0-9a-f]{32}", job_id) is None:
         return None
     path = Path(jobs_root) / job_id / "status.json"

@@ -29,6 +29,9 @@ def yield_factor(clearance: float) -> float:
 
 
 class SafetyMonitor:
+    """Per-episode safety record, updated every control step: the minimum distance between any walker and the robot's
+    collision geoms, whether a walker touched the robot or a door it was holding, and the deepest arm-fixture
+    contact."""
     def __init__(self, model):
         import mujoco
 
@@ -137,6 +140,8 @@ class SafetyMonitor:
         self.n += 1
 
     def summary(self) -> dict:
+        """The episode's safety record as a JSON-ready dict; the distance fields are None when the episode had no people
+        or never stepped."""
         arm = {"arm_contact_steps": self.arm_steps, "arm_contact_max_depth_m": round(self.arm_depth, 4),
                "arm_contact_worst": list(self.arm_worst) if self.arm_worst else None}
         if not self.people:

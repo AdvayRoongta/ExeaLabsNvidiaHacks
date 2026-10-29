@@ -290,6 +290,8 @@ def _part_distance(xy, f: dict, rect) -> float:
 
 
 def stand_problem(twin: dict, b, anchor: dict, what: str = "base stand spot", task: dict | None = None) -> str | None:
+    """Why the base cannot stand at `b` (one sentence), or None: outside the walls' extent, closer than WALL_CLEAR to a
+    wall, BASE_CLEAR to a fixture footprint, or PART_CLEAR to a door or drawer the task opens."""
     walls = twin.get("walls") or []
     if walls:
         xs = [p[0] for w in walls for p in (w["start"], w["end"])]

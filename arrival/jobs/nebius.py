@@ -57,6 +57,8 @@ class NebiusNotConfigured(RuntimeError):
 
 
 def require(*names: str) -> dict[str, str]:
+    """The values of the named settings. Raises NebiusNotConfigured, naming every missing one, before anything is
+    submitted."""
     values = {n: settings.get(n) for n in names}
     missing = [n for n, v in values.items() if not v]
     if missing:
@@ -128,6 +130,7 @@ class ObjectStore:
 
     @classmethod
     def from_settings(cls) -> ObjectStore:
+        """The bucket named by the NEBIUS_* settings; the endpoint defaults to the region's storage endpoint."""
         v = require(*STORE_SETTINGS)
         region = settings.get("NEBIUS_REGION")
         endpoint = settings.get("NEBIUS_S3_ENDPOINT") or f"https://storage.{region}.nebius.cloud"

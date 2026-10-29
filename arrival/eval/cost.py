@@ -101,6 +101,8 @@ def load_baseline(path: str | Path) -> dict:
 
 
 def load_pricing(path: str | Path) -> dict:
+    """The `products` table of a pricing file (YAML or JSON), each with a numeric usd_per_unit >= 0. Raises CostError
+    otherwise."""
     p = _load(path, "pricing")
     prods = p.get("products")
     if not isinstance(prods, dict):
@@ -112,6 +114,8 @@ def load_pricing(path: str | Path) -> dict:
 
 
 def load_usage(path: str | Path) -> dict:
+    """A usage file: metered units per known pricing product, and optionally the room and task they cover. Raises
+    CostError on an unknown product or a negative amount."""
     u = _load(path, "usage")
     for k, v in u.items():
         if k == "scope":
@@ -252,6 +256,9 @@ def collect_rows(out_dir: str | Path) -> list[dict]:
 
 
 def dollars(usage: dict | None, pricing: dict | None) -> dict:
+    """The dollar block of the report: local CPU is a measured $0, and a product is priced only when both usage and
+    pricing name it. A price counts as measured only when its rate basis is `invoiced`; otherwise it is marked as an
+    estimate."""
     d = {"local_cpu": {"usd": 0, "measured": True}}
     for key in ("token_factory", "serverless_jobs", "cosmos", "object_storage", "endpoint"):
         d[key] = {"usd": None, "measured": False}
@@ -290,6 +297,7 @@ def metering_totals(out_dir: str | Path) -> dict:
 
 
 def teleop_block(baseline: dict | None) -> dict | None:
+    """The teleop baseline with seconds and dollars per successful demo added, or None without a baseline."""
     if baseline is None:
         return None
     n = baseline["n_success"]
@@ -339,6 +347,9 @@ def default_baseline(out_dir) -> Path | None:
 
 
 def build(out_dir, usage_path=None, pricing_path="configs/pricing.example.yaml", baseline_path=None) -> dict:
+    """The cross-run cost report for `out_dir`: throughput rows from every report, eval run and job, the dollar block,
+    the teleop comparison when a baseline exists, and the worker's metering totals. Missing optional files (usage,
+    baseline) are looked for under `out_dir`, and the pricing file under the repo root."""
     out = Path(out_dir)
     repo = Path(__file__).resolve().parents[2]
     if baseline_path is None and (out / "teleop_baseline.json").exists():
@@ -362,6 +373,8 @@ def _f(v, fmt="{}"):
 
 
 def markdown(rep: dict) -> str:
+    """The cost report as Markdown: the throughput table, the dollar table, the worker metering line, the eval runs'
+    checkpoint labels and, with a baseline, the generated-vs-teleop comparison."""
     L = ["| source | room | family | attempts | successes | drop rate | seconds | demos/hour | s/demo | attempts/demo |",
          "|---|---|---|---|---|---|---|---|---|---|"]
     for r in rep["rows"]:

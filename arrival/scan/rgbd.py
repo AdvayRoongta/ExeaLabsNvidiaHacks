@@ -35,6 +35,8 @@ class ManifestError(ValueError):
 
 @dataclass(frozen=True)
 class Frame:
+    """One posed RGB-D frame of a scan: its image files, intrinsics, camera pose in the room frame and its train or
+    held-out split."""
     id: str
     timestamp: float
     rgb: Path
@@ -47,6 +49,8 @@ class Frame:
 
 @dataclass(frozen=True)
 class Manifest:
+    """A loaded frames_manifest.json: the room, image sizes, depth unit, the ARKit-world-to-room alignment and the
+    frames."""
     room_id: str
     root: Path
     rgb_size: tuple[int, int]  # (width, height)

@@ -55,6 +55,8 @@ REPO = Path(__file__).resolve().parents[1]
 
 @dataclass
 class Check:
+    """One line of the doctor's report: what was checked, its status (ok, warn, fail or info) and a human-readable
+    detail."""
     name: str
     status: str  # ok | warn | fail | info
     detail: str
@@ -68,6 +70,7 @@ def _version(dist: str) -> str:
 
 
 def check_python(version_info: tuple[int, ...] | None = None) -> Check:
+    """Fail when the interpreter is older than MIN_PYTHON; the detail names the version and platform."""
     v = sys.version_info if version_info is None else version_info
     major, minor = v[0], v[1]
     micro = v[2] if len(v) > 2 else 0
@@ -77,6 +80,7 @@ def check_python(version_info: tuple[int, ...] | None = None) -> Check:
 
 
 def check_core(core_deps: dict[str, str] | None = None) -> list[Check]:
+    """One check per core dependency: ok with its installed version, or fail when it cannot be imported."""
     deps = CORE if core_deps is None else core_deps
     out = []
     for mod, dist in deps.items():
@@ -92,6 +96,8 @@ def check_core(core_deps: dict[str, str] | None = None) -> list[Check]:
 
 
 def check_mujoco() -> Check:
+    """MuJoCo is optional: warn when it is missing (only sim, eval and work need it), fail when it is installed but its
+    native library does not import."""
     try:
         import mujoco
     except ImportError:
@@ -155,6 +161,8 @@ def check_rendering() -> Check:
 
 
 def check_ffmpeg(exe: str | None = None) -> Check:
+    """Find an ffmpeg (the one imageio-ffmpeg bundles, else the one on PATH, or `exe`) and run it once to read its
+    version; fail when none runs, since writing videos needs it."""
     source = "custom"
     if exe is None:
         try:
@@ -205,6 +213,8 @@ def _env_file_names(paths: list[Path]) -> dict[str, Path]:
 
 
 def check_env(environ: dict[str, str] | None = None, env_files: list[Path] | None = None) -> list[Check]:
+    """Whether each optional API setting is set, in the environment or in a .env file that config.get would read. Values
+    are never shown, only where each one comes from."""
     environ = os.environ if environ is None else environ
     files = [Path.cwd() / ".env", REPO / ".env"] if env_files is None else [Path(p) for p in env_files]
     in_file = _env_file_names(files)
@@ -234,6 +244,8 @@ def check_env(environ: dict[str, str] | None = None, env_files: list[Path] | Non
 
 
 def check_disk(out_dir: str | Path = "out") -> Check:
+    """Free space and write access where `out_dir` is (or would be) created: fail on a path that can never be a writable
+    folder, fail below FREE_FAIL_GIB, warn below FREE_WARN_GIB."""
     try:
         p = Path(out_dir).resolve()
     except (OSError, ValueError, TypeError) as e:
@@ -274,6 +286,7 @@ def exit_code(checks: list[Check]) -> int:
 
 
 def render(checks: list[Check]) -> str:
+    """The checks as plain text, one line each, then a one-line count of problems and warnings."""
     tag = {"ok": "ok  ", "warn": "WARN", "fail": "FAIL", "info": "info"}
     lines = [f"[{tag.get(c.status, c.status)}] {c.name}: {c.detail}" for c in checks]
     bad = [c for c in checks if c.status == "fail"]

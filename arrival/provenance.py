@@ -29,6 +29,7 @@ GIT_TIMEOUT_S = 5
 
 
 def sha256_file(path: str | Path) -> str:
+    """The sha256 hex digest of a file's bytes, read in 1 MiB blocks."""
     h = hashlib.sha256()
     with open(path, "rb") as f:
         for block in iter(lambda: f.read(1 << 20), b""):

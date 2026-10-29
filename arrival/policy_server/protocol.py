@@ -39,6 +39,7 @@ class ProtocolError(ValueError):
 
 
 def encode_image(img: np.ndarray) -> str:
+    """An HxWx3 uint8 camera frame as a base64 PNG string. Raises ProtocolError for any other array."""
     from PIL import Image
 
     if not isinstance(img, np.ndarray) or img.ndim != 3 or img.shape[2] != 3 or img.dtype != np.uint8:
@@ -49,6 +50,7 @@ def encode_image(img: np.ndarray) -> str:
 
 
 def decode_image(s: str) -> np.ndarray:
+    """The RGB array of a base64 PNG string. Raises ProtocolError when it does not decode."""
     from PIL import Image
 
     if not isinstance(s, str):

@@ -156,6 +156,7 @@ def wall_distance(fixture: dict, walls: list[dict], step: float = 0.05) -> float
 
 
 def is_island(fixture: dict, walls: list[dict]) -> bool:
+    """A fixture of an island category, within ISLAND_HEIGHT, standing more than ISLAND_CLEARANCE from every wall."""
     lo, hi = ISLAND_HEIGHT
     return (fixture["source_category"] in ISLAND_CATEGORIES and lo <= fixture["size"][2] <= hi
             and bool(walls) and wall_distance(fixture, walls) > ISLAND_CLEARANCE)
@@ -213,6 +214,8 @@ def fridge_hinge(f: dict, fixtures: list[dict], walls: list[dict]) -> str:
 
 
 def compile_twin(bundle: dict) -> dict:
+    """The twin of a ScanBundle: fixtures mapped to RoboCasa types (islands detected, a counter synthesised under each
+    sink or stove that no counter holds), fridge hinges set, objects kept, and provenance stamped."""
     walls = [dict(w) for w in bundle.get("walls", [])]
     fixtures = []
     for f in bundle.get("fixtures", []):
@@ -354,6 +357,8 @@ def _wall_entry(w: dict) -> dict:
 
 
 def layout_dict(twin: dict) -> dict:
+    """The twin as a RoboCasa-subset layout: walls, a floor sized by the scanned floor polygon or the walls, and the
+    fixtures with their poses."""
     walls, xs, ys = [], [], []
     for w in twin.get("walls", []):
         (x0, y0), (x1, y1) = w["start"], w["end"]
@@ -390,6 +395,7 @@ def _r(v: list[float]) -> list[float]:
 
 
 def write_twin(twin: dict, twin_dir: str | Path) -> tuple[Path, Path]:
+    """Write twin.json and layout.yaml under `twin_dir`; returns both paths."""
     twin_dir = Path(twin_dir)
     twin_dir.mkdir(parents=True, exist_ok=True)
     twin_path, layout_path = twin_dir / "twin.json", twin_dir / "layout.yaml"

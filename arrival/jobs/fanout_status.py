@@ -29,6 +29,8 @@ def status_key(cfg: FanoutConfig, i: int) -> str:
 
 
 class StatusRecorder:
+    """A Backend that passes every call to `backend` and keeps a per-shard status record (attempts, states, timing,
+    outcome, failure stage) in the backend's own storage; see the module docstring for the record's fields."""
     def __init__(self, backend):
         self.backend = backend
         self._records: dict[str, dict] = {}  # status key -> record

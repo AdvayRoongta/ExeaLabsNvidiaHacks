@@ -277,6 +277,8 @@ def drop_flagged(root: str | Path, out: str | Path, report: dict | None = None, 
 
 
 def format_report(report: dict) -> str:
+    """The per-episode quality report as text: counts, one line per flag, and the checks that were not run with the
+    reason."""
     lines = [f"{report['dataset']}: {report['episodes']} episodes, {report['flagged']} flagged, {report['kept']} ok "
              f"(checks: {', '.join(report['checks_run'])})"]
     for r in report["results"]:

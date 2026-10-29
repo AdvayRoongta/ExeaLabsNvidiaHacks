@@ -51,6 +51,8 @@ def _fixture(twin: dict, fid: str) -> dict | None:
 
 
 def propose(twin: dict) -> dict:
+    """The placeholder pipeline's tasks for a twin: counter_to_sink and counter_to_counter for every object on the
+    source counter, crossed with start-pose offsets, lighting and wordings. No language model."""
     counters = [f for f in twin["fixtures"] if is_counter_host(f)]
     counter_a = (_fixture(twin, "counter_a")
                  or next((c for c in counters if any(on_counter(o, c) for o in twin["objects"])), None)

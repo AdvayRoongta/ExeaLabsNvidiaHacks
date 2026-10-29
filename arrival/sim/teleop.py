@@ -90,6 +90,8 @@ class TeleopController:
         return None
 
     def action(self) -> np.ndarray:
+        """The 8-wide action for the current key state: the arm joints from an IK solve of the commanded hand pose
+        (solved again only after a key changed it), then the gripper."""
         if self._dirty:
             env = self.env
             self.q, self.ik_error = ik.solve(env.model, env.data, self.pos, ik.down(self.yaw), self.q,

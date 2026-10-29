@@ -239,6 +239,8 @@ class RealismError(ValueError):
 
 
 def resolve_scan(scan: str | Path, scans_dir: str | Path = "scans") -> Path:
+    """The scan folder: `scan` itself when it is a folder, else <scans_dir>/<scan>. Raises RealismError when neither
+    exists."""
     p = Path(scan)
     if p.is_dir():
         return p
@@ -249,6 +251,8 @@ def resolve_scan(scan: str | Path, scans_dir: str | Path = "scans") -> Path:
 
 
 def manifest_dir(scan_dir: Path) -> Path:
+    """The folder holding the scan's frames_manifest.json: the scan folder or its frames/ subfolder. Raises RealismError
+    when there is none, since a scan without posed frames cannot support a realism claim."""
     for d in (scan_dir, scan_dir / "frames"):
         if (d / rgbd.MANIFEST_NAME).is_file():
             return d
@@ -470,6 +474,8 @@ def _json_default(o):
 
 
 def summary(report: dict) -> str:
+    """The realism report in two or three lines: the held-out scores, the misaligned-pose control's scores, and NOT
+    VALID with the reason when the control failed."""
     r = report["realism"]
     if r is None:
         return f"realism: null ({report['reason']})"

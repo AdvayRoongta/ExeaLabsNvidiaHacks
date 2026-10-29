@@ -143,6 +143,8 @@ def pedestal_xml(z: float, base_yaw_deg: float = 0.0, mobile: bool = False) -> s
 
 
 def actuators_xml(mobile: bool = False, finger_open: float = FINGER_OPEN, finger_force: float = FINGER_FORCE) -> str:
+    """MJCF position actuators: one per arm joint, one per finger and, with a mobile base, the base x, y and yaw servos
+    (stiffer in yaw so the arm cannot turn the base)."""
     arm = "".join(f'<position name="a{i + 1}" joint="joint{i + 1}" kp="{KP[i]}" kv="{KP[i] / 15}" '
                   f'ctrlrange="{RANGES[i][0]} {RANGES[i][1]}"/>' for i in range(7))
     fing = "".join(f'<position name="g_{s}" joint="finger_{s}" kp="800" kv="30" ctrlrange="0 {finger_open}" '

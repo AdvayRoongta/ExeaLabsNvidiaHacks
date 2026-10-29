@@ -31,6 +31,8 @@ DRIVE_LANE = 0.6  # ...and within this of the drive line. Driving, the robot rea
 
 
 class Policy:
+    """What run_episode drives: `reset(env, task)` before an episode, then `act(obs)` once per control step for 7 arm
+    joint targets and a gripper opening (ScriptedExpert, VLAClient)."""
     def reset(self, env, task: dict) -> None:  # noqa: D401
         pass
 
@@ -733,6 +735,9 @@ class VLMPlanner:
 
     def plan(self, instruction: str, objects: list[str], fixtures: list[str],
              research_context: str | None = None, twin: dict | None = None) -> dict:
+        """The plan (family, object, target) for an instruction in this room: from the cache when the same request was
+        planned before, from the keyword rules when offline, else from Nemotron through Token Factory, falling back
+        to the rules on any failure. `source` says which answered."""
         from arrival.models.token_factory import TokenFactoryNotConfigured, complete
 
         offered = self._offered_families(twin)

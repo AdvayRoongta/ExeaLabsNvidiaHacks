@@ -304,6 +304,8 @@ def _fmt_list(values) -> str:
 
 
 class ArrivalServer(ThreadingHTTPServer):
+    """The threaded HTTP server and the settings and shared state every request reads: folders, upload and queue limits,
+    public mode, proxy trust, the rate limiter and the locks that serialise job creation and cap concurrent uploads."""
     daemon_threads = True
     # On Windows SO_REUSEADDR lets a second server bind a port that is already being served; ask for exclusive use.
     allow_reuse_address = sys.platform != "win32"
@@ -340,6 +342,8 @@ def _status_phrase(code: int) -> str:
 
 
 class Handler(BaseHTTPRequestHandler):
+    """Every route of the local page: the room list and room pages, job status and deletion, dataset downloads, previews
+    and the upload endpoint. Every reply carries the security headers."""
     server: ArrivalServer
     server_version = "Arrival"
     sys_version = ""  # no Python version in the Server header
@@ -1217,6 +1221,8 @@ def lan_ip() -> str | None:
 
 def serve(port: int = 8000, out_dir: Path = Path("out"), scans_dir: Path = Path("scans"),
           host: str = "127.0.0.1", **limits) -> None:
+    """Serve the page on host:port until Ctrl+C, printing the URL (and the LAN address for the capture app when bound to
+    all interfaces) and a warning whenever it is reachable beyond loopback."""
     server = make_server(host, port, out_dir, scans_dir, **limits)
     bound, real_port = server.server_address[:2]
     print(f"Arrival serving on http://{bound}:{real_port}/  (Ctrl+C to stop)", flush=True)

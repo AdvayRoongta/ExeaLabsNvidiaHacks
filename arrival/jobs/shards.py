@@ -136,6 +136,7 @@ class Journal:
 # ---- merge ----
 
 def read_jsonl_strict(path: Path) -> list[dict]:
+    """The rows of a JSON Lines file, each required to be a JSON object. Raises ShardError naming the first bad line."""
     rows = []
     for number, line in enumerate(path.read_text().splitlines(), 1):
         if line.strip():

@@ -20,6 +20,9 @@ BASE_SLICE = {"start": 8, "end": STATE_DIM}
 
 
 class SimDatasetWriter:
+    """Writes a LeRobot v2.1 dataset of sim episodes: real joint states and commanded targets (STATE_DIM wide, base pose
+    included), one mp4 per camera per episode, the meta files and the run's provenance. resume=True continues a
+    journaled run."""
     def __init__(self, root: str | Path, room_id: str, fps: int, res: int, cameras: tuple[str, ...],
                  provenance: dict | None = None, base: str = "fixed", resume: bool = False,
                  arm: str = "procedural"):
@@ -64,6 +67,8 @@ class SimDatasetWriter:
         return self.root / "videos" / f"chunk-{chunk_of(i):03d}" / f"observation.images.{cam}" / f"episode_{i:06d}.mp4"
 
     def add_episode(self, ep: dict, task: dict) -> int:
+        """Write one successful episode: its parquet, an mp4 per camera (all synchronised with the states) and its
+        episodes.jsonl row with the task, success detail and safety record. Returns the episode index."""
         n = len(ep["states"])
         for cam in self.cameras:
             frames = np.asarray(ep["videos"].get(cam))

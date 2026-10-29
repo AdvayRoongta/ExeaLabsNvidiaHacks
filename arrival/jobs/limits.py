@@ -37,6 +37,8 @@ class QueueFull(LimitError):
 
 @dataclass(frozen=True)
 class Limits:
+    """Every ceiling the web page and the worker enforce, with the defaults used when the environment sets none. 0 turns
+    a limit off where noted."""
     max_upload_bytes: int = MAX_UPLOAD_BYTES  # one upload; web 413 and worker re-check of upload.bin
     max_episodes: int = 100  # episodes per job (the sim's attempt count)
     max_people: int = 4  # simulated people per job
@@ -60,6 +62,7 @@ class Limits:
             raise LimitError(f"people {people} exceeds the limit of {self.max_people}")
 
     def replace(self, **kw) -> "Limits":
+        """A copy with the given limits changed; None leaves a limit as it is. Raises TypeError on an unknown name."""
         known = {f.name for f in fields(self)}
         bad = set(kw) - known
         if bad:
@@ -68,6 +71,9 @@ class Limits:
 
     @classmethod
     def from_env(cls, environ=None) -> "Limits":
+        """Limits from the ARRIVAL_* environment variables (see ENV), each a finite number >= 0, whole where the limit
+        counts things. Raises LimitError on a bad value, so a misconfigured deployment fails loudly instead of
+        running unlimited."""
         env = os.environ if environ is None else environ
         kw: dict = {}
         for name, (var, scale) in ENV.items():

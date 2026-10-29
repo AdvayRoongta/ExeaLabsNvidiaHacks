@@ -62,6 +62,8 @@ def _positive_metres(value) -> bool:
 
 
 def load_measurements(path: str | Path) -> dict:
+    """A room's tape measurements (measurements.json), checked: every required dimension present, no unknown keys, all
+    positive metres. Raises MeasurementError otherwise."""
     data = json.loads(Path(path).read_text(encoding="utf-8"))
     if not isinstance(data, dict):
         raise MeasurementError(f"{path}: expected a JSON object")
@@ -147,6 +149,8 @@ def _over(sink: dict, counter: dict) -> bool:
 
 
 def extract_dimensions(twin: dict) -> dict[str, float]:
+    """The twin's values for the dimensions people tape-measure: the longest counter run and its height, and when
+    present the sink width on that run, the island length and the extra fixture widths."""
     runs = counter_runs(twin)
     if not runs:
         raise MeasurementError(f"{twin['room_id']}: no scanned counter to measure")

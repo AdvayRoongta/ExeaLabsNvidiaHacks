@@ -179,6 +179,8 @@ def run_room(spec: str, out_dir: Path, scans_dir: Path, episodes: int = 2, res: 
 def summarize(rooms=DEFAULT_ROOMS, out_dir: str | Path = "out/summary", scans_dir: str | Path = "scans",
               episodes: int = 2, res: int = 64, people: int = 1,
               families: tuple[str, ...] = ("counter_to_sink", "open_drawer"), seed: int = 0, log=print) -> dict:
+    """Run every room through the tiny pipeline (run_room) and collect the rows with the settings used. Raises
+    ValueError when two room specs would write to the same output folder."""
     out_dir, scans_dir = Path(out_dir), Path(scans_dir)
     rooms = tuple(rooms)
     seen = {}
@@ -207,6 +209,8 @@ def _cell(stage: dict) -> str:
 
 
 def to_markdown(summary: dict) -> str:
+    """The room summary as a Markdown table: one row per room with each stage's result, the tape-measure error and the
+    realism score."""
     s = summary["settings"]
     lines = [f"# Room summary ({s['episodes_per_room']} episodes per room, {s['res']} px, {s['people']} person)", "",
              "| room | geometry | normalize | compile | tasks | sim | validate | per-episode | tape error | realism |",
@@ -248,6 +252,7 @@ def to_markdown(summary: dict) -> str:
 
 
 def write_summary(summary: dict, out_dir: str | Path) -> tuple[Path, Path]:
+    """Write the summary as summary.json and summary.md under `out_dir`; returns (json path, markdown path)."""
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
     jp, mp = out_dir / "summary.json", out_dir / "summary.md"
