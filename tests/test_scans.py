@@ -6,11 +6,10 @@ import math
 
 import pytest
 import yaml
+from conftest import REPO, SCANS
 
 from arrival.scan import bundle, roomplan
 from arrival.twin.compile import compile_twin, write_twin
-
-from conftest import REPO, SCANS
 
 WALL_TOL = 0.01
 FLOOR_TOL = 1e-6

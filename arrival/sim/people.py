@@ -9,8 +9,8 @@ import math
 import mujoco
 import numpy as np
 
-from arrival.sim.safety import YIELD, SafetyMonitor, yield_factor
 from arrival.sim.geometry import fridge_door_frame, point_segment_distance
+from arrival.sim.safety import YIELD, SafetyMonitor, yield_factor
 
 CLEAR = 0.6  # min distance (m) from the base column for any path segment: 0.12 pedestal + 0.17 torso + margin
 LANE = (0.5, 0.75)  # the crossing lane runs this far behind the base, closer than CLEAR on purpose

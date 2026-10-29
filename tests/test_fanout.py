@@ -7,10 +7,11 @@ import pytest
 
 pytest.importorskip("mujoco")
 
+from conftest import SCANS  # noqa: E402
+
 from arrival.export.validate import validate  # noqa: E402
 from arrival.jobs.fanout import FanoutConfig, LocalBackend, NebiusBackendStub, marker_key, run_fanout  # noqa: E402
 from arrival.jobs.shards import ShardError  # noqa: E402
-from conftest import SCANS  # noqa: E402
 
 CFG = FanoutConfig("r1", 2, "hero_kitchen", "counter_to_sink,open_drawer", 4, 0, 32, 3, str(SCANS))
 quiet = lambda *_: None  # noqa: E731

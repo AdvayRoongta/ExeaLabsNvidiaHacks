@@ -10,11 +10,11 @@ mujoco = pytest.importorskip("mujoco")
 
 from arrival.catalog.fixtures import DEFAULT_SIZES, FIXTURE_MAP  # noqa: E402
 from arrival.scan.bundle import load_room  # noqa: E402
-from arrival.sim.scene import build_mjcf, part_names  # noqa: E402
 from arrival.sim.geometry import drawer_x, front_stand  # noqa: E402
+from arrival.sim.scene import build_mjcf, part_names  # noqa: E402
 from arrival.sim.stand import BASE_CLEAR  # noqa: E402
 from arrival.sim.tasks import make_tasks  # noqa: E402
-from arrival.twin.compile import rect_distance, compile_twin, is_counter_host, to_world  # noqa: E402
+from arrival.twin.compile import compile_twin, is_counter_host, rect_distance, to_world  # noqa: E402
 
 SCANS = "tests/fixtures/scans"
 WALLS = [{"id": "wall_n", "start": [0.0, 0.0], "end": [4.0, 0.0], "height": 2.4, "thickness": 0.02},

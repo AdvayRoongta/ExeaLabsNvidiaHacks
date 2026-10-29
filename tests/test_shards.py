@@ -237,10 +237,11 @@ def test_sim_rejects_a_bad_shard_spec(tmp_path, capsys):
 
 mujoco = pytest.importorskip("mujoco")
 
+from conftest import SCANS  # noqa: E402
+
 from arrival.scan.bundle import load_room  # noqa: E402
 from arrival.sim import collect as collect_mod  # noqa: E402
 from arrival.twin.compile import compile_twin  # noqa: E402
-from conftest import SCANS  # noqa: E402
 
 RUN = dict(families=["counter_to_sink", "open_drawer"], episodes=4, people=0, res=32, seed=3, log=lambda *_: None)
 
@@ -346,8 +347,9 @@ def test_resumed_shard_equals_an_uninterrupted_one(runs, twin, tmp_path, monkeyp
 
 
 def test_report_times_each_family_so_cost_can_compare_with_teleop(runs):
-    from arrival.eval import cost
     from conftest import REPO
+
+    from arrival.eval import cost
 
     rep = runs["single"]["report_data"]
     fams = rep["families"]

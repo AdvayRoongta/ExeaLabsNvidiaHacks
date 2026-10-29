@@ -22,8 +22,8 @@ from arrival.scan.bundle import load_room  # noqa: E402
 from arrival.sim.collect import SimEnv, collect, run_episode  # noqa: E402
 from arrival.sim.people import Walkers, frame  # noqa: E402
 from arrival.sim.policy import ScriptedExpert  # noqa: E402
-from arrival.sim.stand import base_pose  # noqa: E402
 from arrival.sim.reach import check_task  # noqa: E402
+from arrival.sim.stand import base_pose  # noqa: E402
 from arrival.sim.tasks import SIM_FAMILIES, finish_task, make_tasks  # noqa: E402
 from arrival.twin.compile import compile_twin, to_local  # noqa: E402
 

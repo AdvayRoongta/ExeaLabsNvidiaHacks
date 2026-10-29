@@ -19,14 +19,20 @@ from functools import lru_cache
 import numpy as np
 
 from arrival.catalog.objects import HANDLE_HELD, RIM_HELD
-from arrival.sim import ik, robot
+from arrival.sim import ik, menagerie, robot
 from arrival.sim.geometry import drawer_x
 from arrival.sim.robot import HANDLE_ROOT, PAD_BELOW_EEF
 from arrival.sim.scene import BOWL_WALL, CARCASS_H, PLATE_FLOOR, PLATE_RIM, RACK_Z
-from arrival.sim.stand import (DRAWER_OPEN_PUT, base_pose, drive_spot, mobile_drive, place_point, rack_spot,
-                               stand_problem)
+from arrival.sim.stand import (
+    DRAWER_OPEN_PUT,
+    base_pose,
+    drive_spot,
+    mobile_drive,
+    place_point,
+    rack_spot,
+    stand_problem,
+)
 from arrival.twin.compile import to_world
-from arrival.sim import menagerie
 
 TOL_CONTACT = 0.025  # m: IK position error allowed where the hand grasps, sets down, presses or strokes
 TOL_HOVER = 0.05  # m: allowed in free air, where the hand only hovers or carries lower than planned

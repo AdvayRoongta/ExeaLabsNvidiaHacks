@@ -8,8 +8,8 @@ import re
 from pathlib import Path
 
 from arrival.catalog.fixtures import default_size
-from arrival.scan.bundle import MAX_COORD_M, MAX_DIM_M, ScanBundleError, is_finite_number, numbers, validate
 from arrival.provenance import sha256_file
+from arrival.scan.bundle import MAX_COORD_M, MAX_DIM_M, ScanBundleError, is_finite_number, numbers, validate
 
 SNAP_TOL = math.radians(5.0)
 CURVE_STEP = math.radians(15.0)

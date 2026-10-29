@@ -1,6 +1,7 @@
 import json
 import os
 from pathlib import Path
+
 import pytest
 
 from arrival.sim.policy import VLMPlanner, rule_plan
@@ -99,7 +100,7 @@ def test_generate_instructions_train_eval_split(tmp_path):
 
 def test_sim_collect_with_vlm_planner(tmp_path, monkeypatch):
     monkeypatch.delenv("TOKEN_FACTORY_API_KEY", raising=False)  # no network; fallback is not cached
-    mujoco = pytest.importorskip("mujoco")
+    pytest.importorskip("mujoco")
     from arrival.scan.bundle import load_room
     from arrival.sim.collect import collect
     from arrival.twin.compile import compile_twin

@@ -9,9 +9,9 @@ mujoco = pytest.importorskip("mujoco")
 
 from arrival.sim import robot  # noqa: E402
 from arrival.sim.collect import SimEnv, collect, run_episode  # noqa: E402
-from arrival.sim.robot import FPS  # noqa: E402
 from arrival.sim.export import STATE_DIM  # noqa: E402
 from arrival.sim.policy import ScriptedExpert  # noqa: E402
+from arrival.sim.robot import FPS  # noqa: E402
 from arrival.sim.scene import build_mjcf  # noqa: E402
 from arrival.sim.tasks import make_tasks  # noqa: E402
 
@@ -168,8 +168,8 @@ def test_mobile_base_opens_door_without_human_contact(hero_twin):
 def test_preflight_checks_the_drive_spot_and_the_whole_path(hero_twin):
     import copy
 
-    from arrival.sim.stand import base_pose, drive_spot, place_point
     from arrival.sim.reach import check_task
+    from arrival.sim.stand import base_pose, drive_spot, place_point
 
     task = _task(hero_twin, "counter_to_counter", seed=1, mobile=True)
     assert check_task(hero_twin, task, mobile=True) is None

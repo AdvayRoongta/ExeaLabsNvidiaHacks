@@ -6,11 +6,10 @@ import shutil
 import sys
 
 import pytest
+from conftest import REPO, SCANS
 
 from arrival.twin.accuracy import MeasurementError, compare, counter_runs, extract_dimensions, load_measurements
 from arrival.twin.compile import compile_twin
-
-from conftest import REPO, SCANS
 
 sys.path.insert(0, str(REPO / "scripts"))
 import scan_accuracy  # noqa: E402

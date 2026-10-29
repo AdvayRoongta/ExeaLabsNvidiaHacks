@@ -8,12 +8,12 @@ height of "2.4" passed and the twin kept the str, so the sim failed on it later.
 import json
 
 import pytest
+from conftest import SCANS
 
 from arrival.jobs.limits import Limits
 from arrival.jobs.queue import create_job
 from arrival.jobs.worker import load_upload, retryable, run_once
 from arrival.scan.bundle import ScanBundleError
-from conftest import SCANS
 
 EYE = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]
 QUIET = lambda *_: None  # noqa: E731

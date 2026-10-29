@@ -10,10 +10,18 @@ import numpy as np
 import pyarrow as pa
 import pyarrow.parquet as pq
 
-from arrival.export.lerobot import (CHUNKS_SIZE, MODALITY, SCHEMA, feature_stats, check_video_size, chunk_of, dataset_stats,
-                                    video_info, write_video)
+from arrival.export.lerobot import (
+    CHUNKS_SIZE,
+    MODALITY,
+    SCHEMA,
+    check_video_size,
+    chunk_of,
+    dataset_stats,
+    feature_stats,
+    video_info,
+    write_video,
+)
 from arrival.sim import menagerie, robot
-
 
 STATE_DIM = 11  # 7 arm joints, gripper, base x, y, yaw (room frame); same layout for action
 BASE_SLICE = {"start": 8, "end": STATE_DIM}

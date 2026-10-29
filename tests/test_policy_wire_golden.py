@@ -8,8 +8,14 @@ import numpy as np
 import pytest
 
 from arrival.policy_server import gr00t_shim
-from arrival.policy_server.protocol import (ProtocolError, decode_image, decode_request, decode_response,
-                                            encode_request, encode_response)
+from arrival.policy_server.protocol import (
+    ProtocolError,
+    decode_image,
+    decode_request,
+    decode_response,
+    encode_request,
+    encode_response,
+)
 
 GOLDEN = json.loads((Path(__file__).parent / "golden" / "policy_wire.json").read_text())
 STATE11 = np.array([0.1, -0.2, 0.3, -1.5, 0.0, 1.2, 0.4, 0.04, 1.5, 0.8, 0.25])

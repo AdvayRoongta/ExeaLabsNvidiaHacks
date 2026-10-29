@@ -362,7 +362,7 @@ class LeRobotWriter:
         """Release the sidecar handle; idempotent, so an aborted run can call it without finish()."""
         self._sidecar.close()
 
-    def __enter__(self) -> "LeRobotWriter":
+    def __enter__(self) -> LeRobotWriter:
         return self
 
     def __exit__(self, *exc) -> None:

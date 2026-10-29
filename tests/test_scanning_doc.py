@@ -4,9 +4,9 @@ validate_scan_dir, and it has to cover the RGB-D frames that `arrival realism` s
 import json
 import re
 
-from arrival.scan.intake import FIELDS, validate_scan_dir
-
 from conftest import REPO
+
+from arrival.scan.intake import FIELDS, validate_scan_dir
 
 DOC = (REPO / "docs" / "SCANNING.md").read_text(encoding="utf-8")
 

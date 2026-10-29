@@ -1,6 +1,6 @@
 import json
+
 import pytest
-from pathlib import Path
 
 from arrival.export.subset import SubsetError, subset_dataset
 from arrival.jobs.shards import ShardError, merge_shards

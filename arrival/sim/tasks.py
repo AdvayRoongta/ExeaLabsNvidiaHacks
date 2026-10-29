@@ -9,9 +9,9 @@ import random
 
 from arrival.catalog.objects import GRASPABLE, PICKABLE, TABLE_MOVABLE, WIPE_TOOLS
 from arrival.sim.geometry import drawer_x, has_door, has_drawers, is_table
-from arrival.tasks.propose import LIGHTING, POSE_OFFSETS, WORDINGS, top_z
 from arrival.sim.reach import check_task, find_shift
 from arrival.sim.stand import DISHWASHER_SIDE
+from arrival.tasks.propose import LIGHTING, POSE_OFFSETS, WORDINGS, top_z
 from arrival.twin.compile import is_counter_host, to_local, to_world
 
 TABLE_MOVE = 0.35  # how far along the table edge move_on_table carries the object (m)

@@ -6,10 +6,9 @@ import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 import pytest
+from conftest import REPO, SCANS
 
 from arrival.web.app import make_server
-
-from conftest import REPO, SCANS
 
 _spec = importlib.util.spec_from_file_location("smoke_hosted", REPO / "scripts" / "smoke_hosted.py")
 smoke = importlib.util.module_from_spec(_spec)

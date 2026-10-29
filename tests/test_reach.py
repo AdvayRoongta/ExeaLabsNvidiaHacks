@@ -13,9 +13,15 @@ from arrival.scan.bundle import load_room  # noqa: E402
 from arrival.sim import menagerie  # noqa: E402
 from arrival.sim.collect import SimEnv, run_episode  # noqa: E402
 from arrival.sim.policy import ScriptedExpert  # noqa: E402
+from arrival.sim.reach import (  # noqa: E402
+    arm_model,
+    chain_errors,
+    check_task,  # noqa: E402
+    find_shift,
+    miss,
+    waypoints,
+)
 from arrival.sim.stand import base_pose  # noqa: E402
-from arrival.sim.reach import check_task  # noqa: E402
-from arrival.sim.reach import arm_model, chain_errors, find_shift, miss, waypoints  # noqa: E402
 from arrival.sim.tasks import _fx, _offset_start, finish_task, make_tasks  # noqa: E402
 from arrival.tasks.propose import POSE_OFFSETS, top_z  # noqa: E402
 from arrival.twin.compile import compile_twin, to_local  # noqa: E402

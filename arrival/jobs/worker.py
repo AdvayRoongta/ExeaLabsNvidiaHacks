@@ -39,9 +39,8 @@ from pathlib import Path
 
 from arrival.jobs.limits import LimitError, Limits
 from arrival.jobs.queue import read_status, write_status
-from arrival.provenance import object_counts
-from arrival.provenance import sha256_file
 from arrival.jobs.retention import gc
+from arrival.provenance import object_counts, sha256_file
 
 DEFAULT_FAMILIES = ("counter_to_sink", "open_drawer", "move_on_table")  # move_on_table runs only in rooms with a table
 STAGES = ("normalize", "twin", "realism", "objects", "sim", "validate", "zip")

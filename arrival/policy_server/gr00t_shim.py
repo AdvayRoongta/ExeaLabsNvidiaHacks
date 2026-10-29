@@ -23,8 +23,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 import numpy as np
 
-from arrival.policy_server.protocol import (ARM_DOF, TASK_KEY, VIDEO_KEYS, ProtocolError, decode_request,
-                                            encode_response)
+from arrival.policy_server.protocol import ARM_DOF, TASK_KEY, VIDEO_KEYS, ProtocolError, decode_request, encode_response
 
 
 def load_policy(model_path: str, modality_config_path: str, device: str, embodiment_tag: str):

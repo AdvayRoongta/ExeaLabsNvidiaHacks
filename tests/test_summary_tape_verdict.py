@@ -8,9 +8,9 @@ with no word that the tolerance is 5 cm.
 import json
 import shutil
 
-from arrival.eval import summary
-
 from conftest import REPO, SCANS
+
+from arrival.eval import summary
 
 MEASURED = REPO / "tests" / "fixtures" / "measurements" / "hero_kitchen.json"
 

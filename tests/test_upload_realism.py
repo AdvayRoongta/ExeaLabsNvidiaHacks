@@ -7,14 +7,14 @@ from pathlib import Path
 
 import numpy as np
 import pytest
+from conftest import SCANS
 from PIL import Image
 
-from arrival.jobs.queue import read_job, write_status
 from arrival.eval.realism import measure
+from arrival.jobs.queue import read_job, write_status
 from arrival.jobs.worker import load_upload, run_once
 from arrival.scan import rgbd, roomplan
 from arrival.web.app import make_server
-from conftest import SCANS
 
 
 def capture(root, twin, room_id, room_transform=None, frame_id="heldout"):

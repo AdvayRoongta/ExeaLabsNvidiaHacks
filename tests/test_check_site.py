@@ -3,7 +3,6 @@ import importlib.util
 import urllib.error
 
 import pytest
-
 from conftest import REPO
 
 _spec = importlib.util.spec_from_file_location("check_site", REPO / "scripts" / "check_site.py")

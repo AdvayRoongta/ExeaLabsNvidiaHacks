@@ -30,7 +30,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from xml.etree import ElementTree
 
@@ -139,7 +139,7 @@ class ObjectStore:
     def _call(self, method: str, key: str = "", query=(), body: bytes = b"") -> tuple[int, bytes]:
         path = f"/{self.bucket}" + (f"/{_quote(key, safe='/-_.~')}" if key else "")
         payload_hash = hashlib.sha256(body).hexdigest()
-        amz_date = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+        amz_date = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
         headers = {"host": self.host, "x-amz-content-sha256": payload_hash, "x-amz-date": amz_date}
         auth, _ = sigv4(method, path, query, headers, payload_hash, self._key_id, self._secret, self.region, "s3",
                         amz_date)

@@ -18,11 +18,12 @@ import sys
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
+from arrival.jobs.nebius import JOB_SETTINGS, STORE_SETTINGS
+
 MIN_PYTHON = (3, 11)
 # import name -> distribution name, for the dependencies in pyproject.toml
 CORE = {"numpy": "numpy", "pyarrow": "pyarrow", "yaml": "pyyaml", "PIL": "pillow", "imageio": "imageio",
         "imageio_ffmpeg": "imageio-ffmpeg"}
-from arrival.jobs.nebius import JOB_SETTINGS, STORE_SETTINGS
 
 NEBIUS_PURPOSES = {
     "NEBIUS_IAM_TOKEN": "Nebius Serverless AI Jobs access token (fanout --backend nebius)",

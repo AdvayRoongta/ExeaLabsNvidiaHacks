@@ -8,13 +8,13 @@ same field are already ScanBundleError and are not retried.
 import json
 
 import pytest
+from conftest import SCANS
 
 from arrival.jobs.limits import Limits
 from arrival.jobs.queue import create_job
 from arrival.jobs.worker import load_upload, retryable, run_once
 from arrival.scan.bundle import ScanBundleError
 from arrival.scan.roomplan import to_bundle
-from conftest import SCANS
 
 HUGE = 10 ** 400
 EYE = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]

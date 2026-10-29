@@ -10,7 +10,6 @@ from __future__ import annotations
 import hashlib
 import itertools
 import json
-import re
 import urllib.request
 from pathlib import Path
 
@@ -557,7 +556,7 @@ class ScriptedExpert(Policy):
         lo, hi = env.model.jnt_range[[env.model.dof_jntid[i] for i in env.dofadr]].T
         q = np.asarray(plan)[:, :7]
         band = LIMIT_FRAC * (hi - lo)
-        return max(longest_run(((q[:, j] <= lo[j] + band[j]) | (q[:, j] >= hi[j] - band[j]))) for j in range(7))
+        return max(longest_run((q[:, j] <= lo[j] + band[j]) | (q[:, j] >= hi[j] - band[j])) for j in range(7))
 
     @staticmethod
     def _plan(env, waypoints, start=None) -> tuple[list[np.ndarray], float, float]:

@@ -7,14 +7,12 @@ import io
 import json
 import os
 import socket
-import sys
 import tarfile
 import threading
 import zipfile
 
 import pytest
 import yaml
-
 from conftest import REPO
 
 

@@ -4,16 +4,16 @@ import math
 
 import pyarrow.parquet as pq
 import pytest
+from conftest import SCANS
 
 from arrival.cli import main, run_demo
 from arrival.export.validate import validate
 from arrival.generate.mimicgen import probe
 from arrival.generate.scripted import count_attempts, generate, target_point
 from arrival.render import sim_texture
-from arrival.render.splat import SplatCompositeNotImplemented, render as splat_render
+from arrival.render.splat import SplatCompositeNotImplemented
+from arrival.render.splat import render as splat_render
 from arrival.tasks.propose import propose
-
-from conftest import SCANS
 
 
 @pytest.fixture
@@ -279,6 +279,7 @@ def test_validator_catches_nan_and_bad_timestamps(tmp_path):
 
 def test_generic_writer(tmp_path):
     import numpy as np
+
     from arrival.export.lerobot import LeRobotWriter
     modality = {"state": {"arm": {"start": 0, "end": 5}, "base": {"start": 5, "end": 7}},
                 "action": {"arm": {"start": 0, "end": 5, "absolute": True}},

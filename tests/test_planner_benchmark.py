@@ -5,7 +5,6 @@ import json
 import urllib.error
 
 import pytest
-
 from conftest import REPO
 
 from arrival.sim.tasks import SIM_FAMILIES

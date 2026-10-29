@@ -157,6 +157,7 @@ def test_writer_rejects_bad_camera_arrays_before_writing(tmp_path, fault):
 
 def test_paired_preview_png_preserves_matching_frame_pixels(tmp_path):
     from PIL import Image
+
     from arrival.render.multiview import write_paired_preview
 
     ego = np.zeros((3, 32, 32, 3), dtype=np.uint8)

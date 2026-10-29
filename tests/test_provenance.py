@@ -6,13 +6,12 @@ import json
 import subprocess
 
 import pytest
+from conftest import REPO, SCANS
 
 from arrival import provenance
 from arrival.scan import bundle as scan_bundle
 from arrival.scan import roomplan
 from arrival.twin.compile import compile_twin, place_default_objects, write_twin
-
-from conftest import REPO, SCANS
 
 HERO = SCANS / "hero_kitchen"
 

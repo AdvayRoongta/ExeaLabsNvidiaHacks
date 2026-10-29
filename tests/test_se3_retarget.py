@@ -7,12 +7,21 @@ import pytest
 
 mujoco = pytest.importorskip("mujoco")
 
-from arrival.provenance import canonical_sha256  # noqa: E402
 from arrival.export.validate import validate  # noqa: E402
 from arrival.generate.se3_retarget import (  # noqa: E402
-    BRIDGE_STEPS, GENERATOR, RetargetPolicy, generate, interpolate, inverse, main, pose, record_source,
-    retarget_trajectory, rigid,
+    BRIDGE_STEPS,
+    GENERATOR,
+    RetargetPolicy,
+    generate,
+    interpolate,
+    inverse,
+    main,
+    pose,
+    record_source,
+    retarget_trajectory,
+    rigid,
 )
+from arrival.provenance import canonical_sha256  # noqa: E402
 from arrival.sim.collect import SimEnv  # noqa: E402
 from arrival.sim.policy import ScriptedExpert  # noqa: E402
 from arrival.sim.tasks import finish_task, make_tasks  # noqa: E402

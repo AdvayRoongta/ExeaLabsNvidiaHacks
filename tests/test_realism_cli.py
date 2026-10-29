@@ -11,13 +11,13 @@ from PIL import Image
 
 mujoco = pytest.importorskip("mujoco")
 
+from conftest import SCANS  # noqa: E402
+
 from arrival import cli  # noqa: E402
 from arrival.eval import realism  # noqa: E402
 from arrival.scan import rgbd  # noqa: E402
 from arrival.scan.bundle import load_room  # noqa: E402
 from arrival.twin.compile import compile_twin  # noqa: E402
-
-from conftest import SCANS  # noqa: E402
 
 W, H = 64, 48
 POSES = {"train_0": ((3.6, 0.5, 1.5), (2.0, 1.5, 0.8)),

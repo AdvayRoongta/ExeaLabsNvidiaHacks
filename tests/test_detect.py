@@ -13,11 +13,11 @@ from pathlib import Path
 
 import numpy as np
 import pytest
+from conftest import REPO, SCANS
 from PIL import Image
 
 from arrival.scan import rgbd
 from arrival.twin import detect
-from conftest import REPO, SCANS
 
 FIXTURES = REPO / "tests" / "fixtures" / "detection"
 REPLIES = FIXTURES / "replies.json"
@@ -240,7 +240,7 @@ def test_held_out_frames_and_other_rooms_are_not_read(room, tmp_path):
 
 def test_two_loosely_boxed_mugs_stay_two(room, tmp_path):
     # each mug's 20 px box also holds the other mug; neither may turn into a second copy of its neighbour
-    from arrival.eval.realism import look_at, render_twin
+    from arrival.eval.realism import render_twin
 
     bundle, twin = room
     mugs = [[3.12, 0.45, 0.97], [3.28, 0.45, 0.97]]

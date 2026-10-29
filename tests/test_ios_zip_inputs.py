@@ -5,7 +5,6 @@ import subprocess
 import zipfile
 
 import pytest
-
 from conftest import REPO
 
 pytestmark = pytest.mark.skipif(platform.system() != "Darwin" or shutil.which("swiftc") is None,

@@ -9,8 +9,16 @@ import pytest
 
 mujoco = pytest.importorskip("mujoco")
 
-from arrival.catalog.objects import (GRASPABLE, HANDLE_HELD, OBJECT_SPECS, PICKABLE, RIM_HELD, THIN_HELD,  # noqa: E402
-                                     object_spec, sample_size)
+from arrival.catalog.objects import (  # noqa: E402
+    GRASPABLE,
+    HANDLE_HELD,
+    OBJECT_SPECS,
+    PICKABLE,
+    RIM_HELD,
+    THIN_HELD,
+    object_spec,
+    sample_size,
+)
 from arrival.scan.bundle import load_room  # noqa: E402
 from arrival.sim.scene import DOOR_FLAT, UPPER_Z0, build_mjcf, overview_camera_xml, part_names  # noqa: E402
 from arrival.twin.compile import compile_twin  # noqa: E402
@@ -251,8 +259,8 @@ def test_spatula_is_pinched_with_the_pads_off_the_counter(twin, family, replaces
     finger touches the counter it lies on (the old body grasp put the pad tips 1 to 3 mm into the top)."""
     from arrival.sim import menagerie
     from arrival.sim.collect import SimEnv
-    from arrival.sim.robot import PAD_BELOW_EEF
     from arrival.sim.policy import ScriptedExpert
+    from arrival.sim.robot import PAD_BELOW_EEF
     from arrival.sim.tasks import make_tasks
 
     if arm == "menagerie" and not menagerie.available():

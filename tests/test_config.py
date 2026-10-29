@@ -4,10 +4,9 @@ import logging
 import re
 
 import pytest
+from conftest import REPO
 
 from arrival import config
-
-from conftest import REPO
 
 FAKE_KEY = "nvapi-FAKEFAKEFAKEFAKE1234"
 

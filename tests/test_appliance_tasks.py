@@ -101,8 +101,8 @@ def test_open_oven_stands_on_the_other_side_when_one_side_is_against_a_wall(hero
 
     from arrival.export.quality import check_trace
     from arrival.sim import robot
-    from arrival.sim.stand import OVEN_ALONG, base_pose
     from arrival.sim.reach import check_task
+    from arrival.sim.stand import OVEN_ALONG, base_pose
     from arrival.twin.compile import to_local
 
     twin = copy.deepcopy(hero_twin)

@@ -26,8 +26,8 @@ def run_demo(room: str = "hero_kitchen", episodes: int = 4, videos: str = "all",
     """scan -> twin -> tasks -> scripted retarget -> oracle -> sim_texture -> LeRobot v2 -> report."""
     from arrival.eval.cost import build_report, write_report
     from arrival.export.lerobot import LeRobotWriter
-    from arrival.provenance import run_record
     from arrival.generate.scripted import generate
+    from arrival.provenance import run_record
     from arrival.render.sim_texture import room_center_x
     from arrival.scan import bundle as scan_bundle
     from arrival.tasks.propose import propose, write_tasks

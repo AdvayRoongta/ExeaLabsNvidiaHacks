@@ -13,13 +13,12 @@ import zipfile
 
 import numpy as np
 import pytest
+from conftest import REPO
 from PIL import Image
 
 from arrival.scan import rgbd
 from arrival.web import frames as frames_mod
 from arrival.web.app import make_server
-
-from conftest import REPO
 
 pytestmark = pytest.mark.skipif(platform.system() != "Darwin" or shutil.which("swiftc") is None,
                                 reason="needs swiftc on macOS")

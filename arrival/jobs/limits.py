@@ -61,7 +61,7 @@ class Limits:
         if self.max_people and people > self.max_people:
             raise LimitError(f"people {people} exceeds the limit of {self.max_people}")
 
-    def replace(self, **kw) -> "Limits":
+    def replace(self, **kw) -> Limits:
         """A copy with the given limits changed; None leaves a limit as it is. Raises TypeError on an unknown name."""
         known = {f.name for f in fields(self)}
         bad = set(kw) - known
@@ -70,7 +70,7 @@ class Limits:
         return Limits(**{**{k: getattr(self, k) for k in known}, **{k: v for k, v in kw.items() if v is not None}})
 
     @classmethod
-    def from_env(cls, environ=None) -> "Limits":
+    def from_env(cls, environ=None) -> Limits:
         """Limits from the ARRIVAL_* environment variables (see ENV), each a finite number >= 0, whole where the limit
         counts things. Raises LimitError on a bad value, so a misconfigured deployment fails loudly instead of
         running unlimited."""

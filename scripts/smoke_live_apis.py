@@ -20,7 +20,7 @@ import json
 import sys
 import tempfile
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[1]
@@ -121,7 +121,7 @@ def main(argv: list[str] | None = None) -> int:
               file=sys.stderr)
         return 2
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     report = {"run_at": now.isoformat(timespec="seconds"), "checks": {}}
     with tempfile.TemporaryDirectory() as d:
         for name, fn in checks:

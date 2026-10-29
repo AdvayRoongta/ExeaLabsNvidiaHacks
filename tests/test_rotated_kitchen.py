@@ -10,10 +10,10 @@ mujoco = pytest.importorskip("mujoco")
 from arrival.scan.bundle import load_room  # noqa: E402
 from arrival.sim.collect import SimEnv, run_episode  # noqa: E402
 from arrival.sim.people import person_spec  # noqa: E402
-from arrival.sim.stand import front  # noqa: E402
 from arrival.sim.policy import ScriptedExpert  # noqa: E402
+from arrival.sim.stand import front  # noqa: E402
 from arrival.sim.tasks import SIM_FAMILIES, finish_task, make_tasks  # noqa: E402
-from arrival.twin.compile import rect_distance, compile_twin  # noqa: E402
+from arrival.twin.compile import compile_twin, rect_distance  # noqa: E402
 
 SCANS = "tests/fixtures/scans"
 RUNS = ("counter_w", "counter_s", "counter_e")

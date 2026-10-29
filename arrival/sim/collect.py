@@ -10,18 +10,26 @@ from pathlib import Path
 import mujoco
 import numpy as np
 
-from arrival.sim import menagerie, robot
-from arrival.sim.robot import FPS, HANDLE_ROOT, PAD_BELOW_EEF, SUBSTEPS
-from arrival.sim.people import Walkers, frame
-from arrival.sim.safety import SafetyMonitor
 from arrival.catalog.objects import HANDLE_HELD, RIM_HELD, THIN_HELD
-from arrival.sim.export import STATE_DIM
-from arrival.sim.stand import DOOR_OPEN, DRAWER_OPEN_PUT, base_pose, corners, drive_spot, front, mobile_drive, place_point, rack_spot
-from arrival.sim.scene import BOWL_WALL, DOOR_FLAT, PLATE_FLOOR, PLATE_RIM, RACK_OUT, build_mjcf
-from arrival.twin.compile import is_counter_host, to_local
 from arrival.provenance import run_record
-from arrival.sim.scene import RACK_Z
-from arrival.sim.scene import CARCASS_H
+from arrival.sim import menagerie, robot
+from arrival.sim.export import STATE_DIM
+from arrival.sim.people import Walkers, frame
+from arrival.sim.robot import FPS, HANDLE_ROOT, PAD_BELOW_EEF, SUBSTEPS
+from arrival.sim.safety import SafetyMonitor
+from arrival.sim.scene import BOWL_WALL, CARCASS_H, DOOR_FLAT, PLATE_FLOOR, PLATE_RIM, RACK_OUT, RACK_Z, build_mjcf
+from arrival.sim.stand import (
+    DOOR_OPEN,
+    DRAWER_OPEN_PUT,
+    base_pose,
+    corners,
+    drive_spot,
+    front,
+    mobile_drive,
+    place_point,
+    rack_spot,
+)
+from arrival.twin.compile import is_counter_host, to_local
 
 SETTLE_STEPS = 12
 DRAWER_OPEN = 0.30  # start state (m) for close_drawer; open_drawer counts > 0.15 as open
@@ -301,7 +309,7 @@ class SimEnv:
         r.update_scene(self.data, cam)
         return r.render().copy()
 
-    def __enter__(self) -> "SimEnv":
+    def __enter__(self) -> SimEnv:
         return self
 
     def __exit__(self, *exc) -> None:

@@ -6,14 +6,16 @@ import pytest
 
 mujoco = pytest.importorskip("mujoco")
 
+from conftest import REPO  # noqa: E402
+
 from arrival.eval.harness import evaluate, wilson  # noqa: E402
+from arrival.eval.manifest import EVAL_SEED_BASE  # noqa: E402
 from arrival.scan.bundle import load_room  # noqa: E402
 from arrival.sim import collect as collect_mod  # noqa: E402
 from arrival.sim.collect import SimEnv, collect, run_episode  # noqa: E402
 from arrival.sim.people import CLEAR, LANE, Walkers  # noqa: E402
 from arrival.sim.policy import ScriptedExpert, VLANotConfigured  # noqa: E402
 from arrival.twin.compile import compile_twin  # noqa: E402
-from conftest import REPO  # noqa: E402
 
 SINK_TASK = {"family": "counter_to_sink", "object_id": "mug_1", "object_label": "mug", "source": "counter_a",
              "target": "sink_1", "target_x": 1.6, "start": [1.0, 0.35, 0.97], "lighting": "neutral",
@@ -235,7 +237,7 @@ def test_eval_isolates_a_failing_episode_and_offsets_seeds(twin, tmp_path, monke
     f = rep["families"]["counter_to_sink"]
     assert f["episodes"] == 2 and f["errors"] == ["RuntimeError: ik exploded"] and f["successes"] <= 1
     assert rep["totals"]["errors"] == 1 and rep["path"].is_file()
-    assert all(t["seed"] >= harness.EVAL_SEED_BASE * 1000 for t in seen)
+    assert all(t["seed"] >= EVAL_SEED_BASE * 1000 for t in seen)
 
 
 def test_every_family_has_a_held_out_wording(twin):

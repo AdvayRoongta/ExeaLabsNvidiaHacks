@@ -12,12 +12,12 @@ import pytest
 
 mujoco = pytest.importorskip("mujoco")
 
+from conftest import REPO, SCANS  # noqa: E402
+
 from arrival.scan import roomplan  # noqa: E402
 from arrival.scan.bundle import load_room  # noqa: E402
 from arrival.sim.scene import build_mjcf, portals_xml  # noqa: E402
 from arrival.twin.compile import compile_twin, place_default_objects  # noqa: E402
-
-from conftest import REPO, SCANS  # noqa: E402
 
 FIXTURES = REPO / "tests" / "fixtures" / "roomplan"
 BASE = (2.0, 0.6, 0.75)  # a stand spot clear of the office's table and chairs (test_non_kitchen)

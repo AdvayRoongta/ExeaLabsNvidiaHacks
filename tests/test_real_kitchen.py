@@ -59,8 +59,8 @@ def test_corner_cabinet_door_stays_out_of_the_blind_corner(twin):
 
 def test_narrow_cabinet_is_one_door(twin):
     # CC64C90B is 0.43 m wide: the 0.5 m drawer stack stuck into the dishwasher and the door was -0.07 m wide
-    from arrival.sim.scene import part_names
     from arrival.sim.geometry import door_w, has_door, has_drawers
+    from arrival.sim.scene import part_names
 
     c, fx = _cabinet(twin, "CC64C90B"), twin["fixtures"]
     assert not has_drawers(c, fx) and has_door(c, fx)

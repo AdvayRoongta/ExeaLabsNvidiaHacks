@@ -150,7 +150,7 @@ def test_collect_rows_finds_single_report_json(tmp_path):
 
 
 def test_default_usage_in_out_dir_is_picked_up(out, tmp_path):
-    base = _w(out / "teleop_baseline.json", BASELINE)
+    _w(out / "teleop_baseline.json", BASELINE)
     _w(out / "usage.json", {"scope": {"room": "hero_kitchen", "task": "counter_to_sink"}, "gpu_hour": 2})
     rep = cost.build(out, pricing_path=PRICING)
     assert rep["comparison"]["generated"]["usd_per_success"] == round(5 / 7, 4)

@@ -13,9 +13,9 @@ mujoco = pytest.importorskip("mujoco")
 from arrival.catalog.objects import GRASPABLE, ROOM_OBJECTS, TABLE_MOVABLE, catalog_id, room_kind, sample_size  # noqa: E402
 from arrival.scan import roomplan  # noqa: E402
 from arrival.sim.collect import SimEnv, run_episode  # noqa: E402
+from arrival.sim.geometry import is_table  # noqa: E402
 from arrival.sim.policy import ScriptedExpert  # noqa: E402
 from arrival.sim.scene import build_mjcf, part_names  # noqa: E402
-from arrival.sim.geometry import is_table  # noqa: E402
 from arrival.sim.tasks import SIM_FAMILIES, make_tasks  # noqa: E402
 from arrival.twin.compile import compile_twin, place_default_objects, to_local  # noqa: E402
 

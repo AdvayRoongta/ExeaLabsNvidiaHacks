@@ -6,12 +6,11 @@ import zlib
 from pathlib import Path
 
 import pytest
+from conftest import SCANS
 
 from arrival.scan import bundle, roomplan
 from arrival.scan.four_photo import bundle_from_photos
 from arrival.twin.compile import compile_twin
-
-from conftest import SCANS
 
 
 def test_sink_coordinate_conversion():

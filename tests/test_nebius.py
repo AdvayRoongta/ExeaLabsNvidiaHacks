@@ -8,14 +8,14 @@ import json
 import sys
 
 import pytest
+from conftest import REPO, SCANS
+from fake_nebius import FakeJobs, FakeS3
 
 from arrival import config
 from arrival.jobs.fanout import FAILED, FanoutConfig, LocalBackend, run_fanout
 from arrival.jobs.fanout_status import StatusRecorder, status_key
 from arrival.jobs.nebius import NebiusBackend, NebiusNotConfigured, ObjectStore, sigv4
 from arrival.jobs.shards import ShardError
-from conftest import REPO, SCANS
-from fake_nebius import FakeJobs, FakeS3
 
 needs_sim = pytest.mark.skipif(importlib.util.find_spec("mujoco") is None, reason="needs mujoco")
 CFG = FanoutConfig("r1", 2, "hero_kitchen", "counter_to_sink,open_drawer", 4, 0, 32, 3, str(SCANS))

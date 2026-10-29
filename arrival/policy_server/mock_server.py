@@ -44,7 +44,7 @@ class MockPolicyServer(ThreadingHTTPServer):
     def url(self) -> str:
         return f"http://{self.server_address[0]}:{self.server_address[1]}"
 
-    def start(self) -> "MockPolicyServer":
+    def start(self) -> MockPolicyServer:
         threading.Thread(target=self.serve_forever, daemon=True).start()
         return self
 

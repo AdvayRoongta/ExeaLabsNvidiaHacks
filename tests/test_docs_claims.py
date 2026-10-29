@@ -3,7 +3,6 @@ import json
 import shutil
 
 import pytest
-
 from conftest import REPO
 
 _spec = importlib.util.spec_from_file_location("check_docs", REPO / "scripts" / "check_docs.py")

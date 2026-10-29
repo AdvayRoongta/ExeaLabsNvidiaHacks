@@ -15,9 +15,9 @@ import uuid
 from importlib.metadata import version
 from pathlib import Path
 
+from arrival.eval.manifest import make_manifest, validate_manifest
 from arrival.sim.collect import SimEnv, run_episode
 from arrival.sim.robot import FPS
-from arrival.eval.manifest import EVAL_SEED_BASE, make_manifest, validate_manifest
 
 
 def wilson(k: int, n: int, z: float = 1.96) -> list[float]:

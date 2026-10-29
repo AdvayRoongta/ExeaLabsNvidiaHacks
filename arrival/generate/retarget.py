@@ -17,9 +17,9 @@ from pathlib import Path
 import numpy as np
 
 from arrival.sim.collect import SimEnv, run_episode
-from arrival.sim.robot import FPS
 from arrival.sim.export import SimDatasetWriter
 from arrival.sim.policy import ScriptedExpert
+from arrival.sim.robot import FPS
 from arrival.sim.tasks import finish_task, make_tasks
 
 GENERATOR = "seed_replay_retarget"

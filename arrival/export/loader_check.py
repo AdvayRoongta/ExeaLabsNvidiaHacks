@@ -239,7 +239,7 @@ def check_loader(root: str | Path) -> dict:
     stat_cols = ("observation.state", "action")
     acc = {c: {"n": 0, "sum": 0.0, "sq": 0.0, "min": None, "max": None, "rows": []} for c in stat_cols}
     ep_local: dict[int, dict] = {}
-    rel_min, rel_max, rel_finite = np.inf, -np.inf, True
+    rel_min, rel_max = np.inf, -np.inf
     padded = windows = short = frames = 0
     nonfinite_cols: set[str] = set()
     for e in episodes:

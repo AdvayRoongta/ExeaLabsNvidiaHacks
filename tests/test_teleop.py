@@ -8,6 +8,8 @@ import pytest
 
 mujoco = pytest.importorskip("mujoco")
 
+from conftest import SCANS  # noqa: E402
+
 from arrival.eval.cost import load_baseline  # noqa: E402
 from arrival.export.validate import validate  # noqa: E402
 from arrival.scan.bundle import load_room  # noqa: E402
@@ -15,8 +17,6 @@ from arrival.sim import teleop  # noqa: E402
 from arrival.sim.collect import SimEnv  # noqa: E402
 from arrival.sim.tasks import finish_task, make_tasks  # noqa: E402
 from arrival.twin.compile import compile_twin  # noqa: E402
-
-from conftest import SCANS  # noqa: E402
 
 QUIET = lambda *_: None  # noqa: E731
 

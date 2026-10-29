@@ -152,8 +152,8 @@ def run(twin: dict, frames: Iterable[list[str]], out_dir: str | Path = "out", op
     """Teleoperate attempts until `target_successes` succeed or the operator quits (or `frames` runs out).
     `frames` yields the keys typed during each 1/20 s control step. Returns a summary with the paths written."""
     from arrival.sim.collect import SimEnv
-    from arrival.sim.robot import FPS
     from arrival.sim.export import SimDatasetWriter
+    from arrival.sim.robot import FPS
     from arrival.sim.tasks import finish_task, make_tasks
 
     out_dir = Path(out_dir)

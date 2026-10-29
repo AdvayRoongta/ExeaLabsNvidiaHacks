@@ -4,10 +4,10 @@ as a machine fault and retries."""
 import json
 
 import pytest
+from conftest import SCANS
 
 from arrival.jobs.worker import load_upload, retryable
 from arrival.scan import bundle as scan_bundle
-from conftest import SCANS
 
 MALFORMED = {
     "corner list instead of a floor object": [[0, 0], [4, 0], [4, 3], [0, 3]],

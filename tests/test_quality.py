@@ -274,6 +274,7 @@ def test_cli_episodes_exit_codes_and_drop(ds, tmp_path, capsys):
 
 def _write_episodes(root, rng, lengths):
     import pyarrow as pa
+
     from arrival.export import lerobot
 
     (root / "data" / "chunk-000").mkdir(parents=True)
@@ -303,6 +304,7 @@ def test_dataset_stats_quantiles_match_the_python_list_reading(tmp_path):
 
 def test_list_column_matches_to_pylist_and_refuses_ragged_or_null_rows():
     import pyarrow as pa
+
     from arrival.export.lerobot import list_column
 
     rows = np.random.default_rng(0).normal(size=(5, 3)).astype(np.float32)

@@ -4,7 +4,6 @@ upstream 897aa05, so a change to the map that would change these twins' tasks fa
 import importlib.util
 
 import pytest
-
 from conftest import REPO
 
 from arrival.sim import tasks

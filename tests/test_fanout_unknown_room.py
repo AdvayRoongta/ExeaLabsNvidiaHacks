@@ -4,9 +4,9 @@ room, so a rerun with the right one under the same --run-id was refused as "star
 import shutil
 
 import pytest
+from conftest import SCANS
 
 from arrival import cli
-from conftest import SCANS
 
 pytest.importorskip("mujoco")  # cmd_fanout checks --families against arrival.sim.tasks
 

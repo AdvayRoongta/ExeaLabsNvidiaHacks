@@ -11,7 +11,8 @@ import json
 from pathlib import Path
 from typing import Any
 
-from arrival.models.tavily import TavilyNotConfigured, search as tavily_search, validate_reply
+from arrival.models.tavily import TavilyNotConfigured, validate_reply
+from arrival.models.tavily import search as tavily_search
 
 DEFAULT_CACHE = Path("out") / "cache" / "tavily_cache.json"  # under the run's out/, never in the package (see instructions.py)
 

@@ -12,16 +12,16 @@ against fakes and has never run against Nebius. `NebiusBackendStub` below is the
 from __future__ import annotations
 
 import json
-import re
-
 import math
+import re
 import shutil
 import subprocess
 import sys
 import time
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable, Protocol
+from typing import Protocol
 
 from arrival.jobs.shards import ShardError, merge_shards
 

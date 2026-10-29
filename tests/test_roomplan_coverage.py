@@ -5,12 +5,11 @@ import json
 import math
 
 import pytest
+from conftest import REPO
 
 from arrival.catalog.fixtures import DEFAULT_SIZES, FIXTURE_MAP, default_size
 from arrival.scan import roomplan
 from arrival.twin.compile import compile_twin, layout_dict
-
-from conftest import REPO
 
 # CapturedRoom.Object.Category cases, as Apple spells them (developer.apple.com/documentation/roomplan).
 APPLE_CATEGORIES = ("bathtub", "bed", "chair", "dishwasher", "fireplace", "oven", "refrigerator", "sink",

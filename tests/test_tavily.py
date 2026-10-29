@@ -1,9 +1,11 @@
-import os
 import json
+import os
 from pathlib import Path
+
 import pytest
 
-from arrival.models.tavily import TavilyNotConfigured, search as tavily_search
+from arrival.models.tavily import TavilyNotConfigured
+from arrival.models.tavily import search as tavily_search
 from arrival.tasks.tavily_research import TavilyResearchAgent
 
 
@@ -93,6 +95,7 @@ def test_enrich_twin_with_tavily_research(tmp_path):
 
 def test_cli_research_command(tmp_path):
     import argparse
+
     from arrival.cli import cmd_research
 
     args = argparse.Namespace(
@@ -164,6 +167,7 @@ def test_default_cache_is_under_out_not_in_the_package(tmp_path, monkeypatch):
 def http_reply(monkeypatch):
     """An HTTP-200 byte stream in process: no listener, API keys or real connection needed."""
     import io
+
     from arrival.models import tavily
 
     calls = []

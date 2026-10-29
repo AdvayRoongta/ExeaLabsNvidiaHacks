@@ -10,13 +10,13 @@ import pytest
 
 mujoco = pytest.importorskip("mujoco")
 
+from conftest import REPO, SCANS  # noqa: E402
+
 from arrival.cli import run_demo  # noqa: E402
 from arrival.export.loader_check import check_loader, format_report  # noqa: E402
 from arrival.scan.bundle import load_room  # noqa: E402
 from arrival.sim.collect import collect  # noqa: E402
 from arrival.twin.compile import compile_twin  # noqa: E402
-
-from conftest import REPO, SCANS  # noqa: E402
 
 sys.path.insert(0, str(REPO / "scripts"))
 from check_dataset_loader import main as check_main  # noqa: E402

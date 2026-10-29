@@ -42,7 +42,7 @@ import sys
 import tempfile
 import time
 from collections import Counter
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[1]
@@ -409,7 +409,7 @@ def main(argv: list[str] | None = None) -> int:
             rec["reply"] = reply
         return reply
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     rows: list[dict] = []
     wording_calls = 0
     tf.complete = recording

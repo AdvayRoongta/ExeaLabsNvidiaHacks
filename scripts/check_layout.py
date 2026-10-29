@@ -24,7 +24,6 @@ import yaml
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from arrival.catalog.fixtures import fixture_type  # noqa: E402
 
 TOL = 0.05
 DECLARED_OMISSIONS = ("doors", "windows", "openings", "objects")
@@ -179,8 +178,7 @@ def main(argv: list[str] | None = None) -> int:
             layout = yaml.safe_load(src.read_text())
     except FileNotFoundError as e:
         if getattr(a, "room", None):
-            from arrival.scan.bundle import resolve_scans
-            from arrival.scan.bundle import rooms_hint
+            from arrival.scan.bundle import resolve_scans, rooms_hint
             scans = resolve_scans(a.scans)
             p.error(f"no scan for room {a.room!r} under {scans} ({rooms_hint(a.room, scans)}): {e}")
         p.error(str(e))

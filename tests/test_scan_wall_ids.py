@@ -5,10 +5,10 @@ failed with KeyError: 'id' when the twin was written, which the worker retried a
 import json
 
 import pytest
+from conftest import SCANS
 
 from arrival.jobs.worker import load_upload, retryable
 from arrival.scan import bundle as scan_bundle
-from conftest import SCANS
 
 BAD = {
     "two walls with one id": lambda d: d["walls"][1].update(id=d["walls"][0]["id"]),

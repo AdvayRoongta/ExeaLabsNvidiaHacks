@@ -1,4 +1,5 @@
 import json
+
 import pytest
 
 from arrival.tasks.instructions import INSTRUCTION_STYLES, STYLE_PROMPTS, _cache_key, generate_instructions

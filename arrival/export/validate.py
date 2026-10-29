@@ -12,6 +12,7 @@ import pyarrow as pa
 import pyarrow.parquet as pq
 
 from arrival.export.lerobot import read_jsonl
+
 META = ("info.json", "tasks.jsonl", "episodes.jsonl", "episodes_stats.jsonl", "stats.json", "modality.json", "embodiment.json")
 ROW_KEYS = {"episodes.jsonl": ("episode_index", "length"), "tasks.jsonl": ("task_index", "task")}
 DTYPES = {

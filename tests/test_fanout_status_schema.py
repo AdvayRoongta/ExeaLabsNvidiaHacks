@@ -3,7 +3,7 @@ import json
 import pytest
 
 from arrival.jobs.fanout import FanoutConfig
-from arrival.jobs.fanout_status import StatusRecorder, status_key
+from arrival.jobs.fanout_status import StatusRecorder
 from arrival.jobs.shards import ShardError
 
 CFG = FanoutConfig("run", 2, "room", "counter_to_sink", 4, 0, 32, 0, "scans")

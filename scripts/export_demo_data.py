@@ -26,10 +26,10 @@ from arrival.catalog.objects import OBJECT_SPECS  # noqa: E402
 from arrival.scan import bundle as scan_bundle  # noqa: E402
 from arrival.sim import robot  # noqa: E402
 from arrival.sim.collect import SimEnv, run_episode  # noqa: E402
-from arrival.sim.robot import FPS, SUBSTEPS  # noqa: E402
 from arrival.sim.export import BASE_SLICE  # noqa: E402
 from arrival.sim.people import limb_segments  # noqa: E402
 from arrival.sim.policy import ScriptedExpert  # noqa: E402
+from arrival.sim.robot import FPS, SUBSTEPS  # noqa: E402
 from arrival.sim.scene import build_mjcf, part_names  # noqa: E402
 from arrival.sim.tasks import finish_task, make_tasks  # noqa: E402
 from arrival.twin.compile import compile_twin  # noqa: E402
@@ -535,7 +535,7 @@ def main(argv=None) -> int:
             skipped[fam] = "no reachable variation in this room for the fixed-base arm"
     tasks = [finish_task(t) for t in make_tasks(twin, reachable, len(reachable), seed=a.seed, people=PEOPLE, log=log)]
 
-    fam_stats, all_bodies, bytes_by_file, attempted, exported = {}, [], {}, 0, 0
+    fam_stats, all_bodies, attempted, exported = {}, [], 0, 0
     for task in tasks:
         fam = task["family"]
         attempted += 1

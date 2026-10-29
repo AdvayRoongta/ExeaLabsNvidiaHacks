@@ -6,15 +6,15 @@ import json
 
 import numpy as np
 import pytest
+from conftest import SCANS
 
 from arrival import cli
-from arrival.provenance import run_record
 from arrival.export.validate import validate
 from arrival.jobs.shards import ShardError, merge_shards, shard_range
+from arrival.provenance import run_record
 from arrival.scan.bundle import load_room
 from arrival.sim.export import SimDatasetWriter
 from arrival.twin.compile import compile_twin
-from conftest import SCANS
 
 CAMS = ("ego_view", "wrist")
 

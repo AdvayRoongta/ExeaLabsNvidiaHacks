@@ -190,7 +190,8 @@ It needs no network and no keys. `TOKEN_FACTORY_*`, `TAVILY_*`, `GR00T_POLICY_UR
 ## Repo checks (CI)
 
 ```bash
-make lint            # ruff: syntax errors and undefined names only
+make lint            # ruff check (bugs, sorted imports, no unused names) and ruff format --check
+make format          # ruff check --fix, then ruff format: what make lint asks for
 make docs-check      # scripts/check_docs.py and scripts/check_links.py
 make package-smoke   # python scripts/smoke_package.py [--offline] [--keep DIR] [--build-python PY]
 ```

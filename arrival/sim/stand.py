@@ -11,7 +11,15 @@ import math
 
 import numpy as np
 
-from arrival.sim.geometry import DRAWER_W, door_hinge_x, door_w, drawer_x, fridge_mirror, front_stand, point_segment_distance
+from arrival.sim.geometry import (
+    DRAWER_W,
+    door_hinge_x,
+    door_w,
+    drawer_x,
+    fridge_mirror,
+    front_stand,
+    point_segment_distance,
+)
 from arrival.twin.compile import is_counter_host, to_local, to_world
 
 BASE_CLEAR = 0.15  # the base column is 0.12 m in radius

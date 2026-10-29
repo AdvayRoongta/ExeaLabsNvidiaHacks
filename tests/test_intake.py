@@ -6,12 +6,11 @@ import re
 from pathlib import Path
 
 import pytest
+from conftest import REPO
 from PIL import Image
 
 from arrival.scan import intake as it
 from arrival.twin.accuracy import load_measurements
-
-from conftest import REPO
 
 OFFICE = REPO / "tests" / "fixtures" / "roomplan" / "office.json"
 KITCHEN = REPO / "tests" / "fixtures" / "roomplan" / "kitchen_real_01.json"

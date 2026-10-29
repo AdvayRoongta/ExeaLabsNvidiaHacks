@@ -31,8 +31,14 @@ import json
 import math
 from pathlib import Path
 
-from arrival.twin.compile import (ADJACENT_GAP, COUNTER_HEIGHT, ISLAND_CLEARANCE, is_counter_host, to_local,
-                                  wall_distance)
+from arrival.twin.compile import (
+    ADJACENT_GAP,
+    COUNTER_HEIGHT,
+    ISLAND_CLEARANCE,
+    is_counter_host,
+    to_local,
+    wall_distance,
+)
 
 DEFAULT_TOLERANCE_M = 0.05
 REQUIRED = ("counter_length_m", "counter_height_m", "sink_width_m")

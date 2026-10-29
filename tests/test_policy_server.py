@@ -7,8 +7,14 @@ import pytest
 
 from arrival.policy_server import gr00t_shim
 from arrival.policy_server.mock_server import MockPolicyServer
-from arrival.policy_server.protocol import (ProtocolError, decode_image, decode_request, decode_response,
-                                            encode_request, encode_response)
+from arrival.policy_server.protocol import (
+    ProtocolError,
+    decode_image,
+    decode_request,
+    decode_response,
+    encode_request,
+    encode_response,
+)
 from arrival.sim.policy import VLAClient
 
 STATE = np.array([0.1, -0.2, 0.3, -1.5, 0.0, 1.2, 0.4, 0.04])
