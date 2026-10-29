@@ -10,8 +10,8 @@
   "total": 80
  },
  "prs": {
-  "merged": 379,
-  "open": 1,
+  "merged": 414,
+  "open": 2,
   "closed_unmerged": 18
  },
  "groups": [
@@ -1244,8 +1244,9 @@
  ],
  "not_merged": {
   "prs": [
-   101
+   101,
+   472
   ],
-  "note": "#101 ignores site/, which the repo tracks and deploys to https://arrival.exealabs.org. Left out on purpose; close it."
+  "note": "#101 ignores site/, which the repo tracks and deploys to https://arrival.exealabs.org. Left out on purpose; close it. #472 (procedural drawer enclosure walls) fails the portable tests on Linux, macOS and Windows; it needs a fix before it can merge."
  }
 }
