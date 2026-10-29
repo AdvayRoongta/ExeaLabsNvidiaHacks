@@ -59,11 +59,13 @@ def test_committed_stats_match_the_committed_files():
     assert {k: files[k] for k in actual} == actual
 
 
-def test_rerun_keeps_the_hand_edited_todo_list(tmp_path, monkeypatch):
-    # the export clears its output folder; site/data/todo.json is the team's to-do list and must survive that
+def test_rerun_keeps_the_hand_edited_todo_list_and_reader_lines(tmp_path, monkeypatch):
+    # the export clears its output folder; site/data/todo.json (the team's to-do list) and readers-lines.json (the
+    # film's lines, read by readers.html and api/readers.mjs) are hand-edited and must survive that
     out = tmp_path / "data"
     out.mkdir()
     (out / "todo.json").write_text('{"items": []}')
+    (out / "readers-lines.json").write_text('[{"n": 1}]')  # the film's lines for readers.html and api/readers
     (out / "stale.json").write_text("{}")
     def stop(*_args, **_kwargs):  # stop right after the output folder is reset, before any sim runs
         raise RuntimeError("stop")
@@ -72,6 +74,7 @@ def test_rerun_keeps_the_hand_edited_todo_list(tmp_path, monkeypatch):
     with pytest.raises(RuntimeError, match="stop"):
         export_demo_data.main(["--out", str(out), "--scratch", str(tmp_path / "scratch")])
     assert (out / "todo.json").read_text() == '{"items": []}'
+    assert (out / "readers-lines.json").read_text() == '[{"n": 1}]'
     assert not (out / "stale.json").exists()
 
 

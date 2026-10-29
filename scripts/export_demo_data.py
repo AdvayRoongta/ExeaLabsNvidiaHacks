@@ -35,7 +35,9 @@ from arrival.twin.compile import compile_twin  # noqa: E402
 
 FAMILIES = ["counter_to_sink", "open_drawer", "open_door", "open_fridge", "put_in_drawer", "wipe_counter"]
 OUT_FPS = 15
-KEEP = ("todo.json",)  # hand-edited files in site/data that this export does not generate; kept across a re-run
+KEEP = ("todo.json", "readers-lines.json")  # hand-edited files in site/data that this export does not generate; kept
+# across a re-run. readers-lines.json is the film script readers.html shows and api/readers.mjs checks sign-ups
+# against: without it the page says "The script did not load" and every sign-up fails.
 PREVIEW_PX = 256
 PEOPLE = 2
 VISIBLE_GROUPS = (0, 1, 2)  # group 3 holds the hidden collision geoms
