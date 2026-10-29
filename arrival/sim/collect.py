@@ -455,6 +455,41 @@ def run_episode(env: SimEnv, policy, task: dict, max_steps: int = 400, preview: 
             "fridge_visit": bool(getattr(env.walkers, "visit", None) and getattr(env.walkers, "door_max", 0.0) > 0.0)}
 
 
+def _family_row(per: dict, family: str) -> dict:
+    """The running per-family counters of a collect run, created at zero on first use."""
+    return per.setdefault(family, {"attempts": 0, "successes": 0, "human_contacts": 0, "fridge_visits": 0,
+                                   "door_contacts": 0, "seconds": 0.0})
+
+
+def _apply_plan(planner, task: dict, twin: dict, log) -> None:
+    """Ask the VLM planner for the task's instruction (with the target fixture's Tavily research when the twin has
+    it) and record the plan on the task. The plan only refines the task's own fields: its family, and the pick/place
+    fields other families lack, stay as make_tasks set them (a rewritten family would miss its source/target/fixture
+    or flip open/close), and a plan for another family names that family's roles, so none of its fields are taken."""
+    obj_ids = [o["id"] for o in twin.get("objects", [])]
+    fx_ids = [f["id"] for f in twin.get("fixtures", [])]
+    research_ctx = None
+    if "tavily_research" in twin:
+        target_fx = task.get("target") or task.get("fixture") or ""
+        target_type = next((f.get("type", "") for f in twin.get("fixtures", []) if f.get("id") == target_fx), "")
+        if target_type and target_type in twin["tavily_research"]:
+            r_info = twin["tavily_research"][target_type]
+            research_ctx = f"{r_info.get('summary', '')} {' '.join(r_info.get('safety_guidelines', []))}"
+    plan = planner.plan(task["instruction"], obj_ids, fx_ids, research_context=research_ctx, twin=twin)
+    task["vlm_plan"] = plan
+    task["planned_by"] = planner.source
+    if research_ctx:
+        task["tavily_enriched"] = True
+    if plan.get("family") and plan["family"] != task["family"]:
+        log(f"[sim] task {task['task_id']}: planner family {plan['family']} != {task['family']}; keeping the task's")
+    else:
+        if plan.get("object") and plan["object"] in obj_ids and "object_id" in task:
+            task["object_id"] = plan["object"]
+        if plan.get("target") and plan["target"] in fx_ids and "target" in task:
+            task["target"] = plan["target"]
+    log(f"[sim] task {task['task_id']}: planned by {planner.source} -> {plan}")
+
+
 def collect(twin: dict, families: list[str], episodes: int, out_dir: str | Path = "out", people: int = 2,
             policy_name: str = "scripted", res: int = 128, seed: int = 0, save_preview: bool = False,
             planner_name: str = "rule", cache_path: str | Path | None = None,
@@ -517,8 +552,7 @@ def collect(twin: dict, families: list[str], episodes: int, out_dir: str | Path 
                 errors += 1
                 skips.append({"stage": r["stage"], "task_id": r["task_id"], "family": r["family"], "reason": r["reason"]})
                 continue
-            fam = per.setdefault(r["family"], {"attempts": 0, "successes": 0, "human_contacts": 0,
-                                               "fridge_visits": 0, "door_contacts": 0, "seconds": 0.0})
+            fam = _family_row(per, r["family"])
             fam["attempts"] += 1
             fam["seconds"] += r["seconds"]
             fam["successes"] += r["outcome"] == "ok"
@@ -534,33 +568,7 @@ def collect(twin: dict, families: list[str], episodes: int, out_dir: str | Path 
             continue
         t_task = time.perf_counter()
         if planner is not None:
-            obj_ids = [o["id"] for o in twin.get("objects", [])]
-            fx_ids = [f["id"] for f in twin.get("fixtures", [])]
-            research_ctx = None
-            if "tavily_research" in twin:
-                target_fx = task.get("target") or task.get("fixture") or ""
-                target_type = next((f.get("type", "") for f in twin.get("fixtures", []) if f.get("id") == target_fx), "")
-                if target_type and target_type in twin["tavily_research"]:
-                    r_info = twin["tavily_research"][target_type]
-                    research_ctx = f"{r_info.get('summary', '')} {' '.join(r_info.get('safety_guidelines', []))}"
-            plan = planner.plan(task["instruction"], obj_ids, fx_ids, research_context=research_ctx,
-                                twin=twin)
-            task["vlm_plan"] = plan
-            task["planned_by"] = planner.source
-            if research_ctx:
-                task["tavily_enriched"] = True
-            # the planner only refines a task's own fields: its family, and the pick/place fields other families lack,
-            # stay as make_tasks set them (a rewritten family would miss its source/target/fixture or flip open/close)
-            # a plan for another family names that family's roles (wipe_counter's target is the counter to wipe),
-            # so none of its fields are taken
-            if plan.get("family") and plan["family"] != task["family"]:
-                log(f"[sim] task {task['task_id']}: planner family {plan['family']} != {task['family']}; keeping the task's")
-            else:
-                if plan.get("object") and plan["object"] in obj_ids and "object_id" in task:
-                    task["object_id"] = plan["object"]
-                if plan.get("target") and plan["target"] in fx_ids and "target" in task:
-                    task["target"] = plan["target"]
-            log(f"[sim] task {task['task_id']}: planned by {planner.source} -> {plan}")
+            _apply_plan(planner, task, twin, log)
         stage = "build"
         try:
             env = SimEnv(twin, task, res=res, cameras=cameras, overview=save_preview and i == 0, base=base, arm=arm)
@@ -583,8 +591,7 @@ def collect(twin: dict, families: list[str], episodes: int, out_dir: str | Path 
             journal.append({"task_id": task["task_id"], "outcome": "skip", "family": task["family"], "stage": stage,
                             "reason": skips[-1]["reason"], "seconds": round(time.perf_counter() - t_task, 3)})
             continue
-        fam = per.setdefault(task["family"], {"attempts": 0, "successes": 0, "human_contacts": 0,
-                                              "fridge_visits": 0, "door_contacts": 0, "seconds": 0.0})
+        fam = _family_row(per, task["family"])
         fam["attempts"] += 1
         contact = ep["safety"]["human_contact"]
         fam["human_contacts"] += contact

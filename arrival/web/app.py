@@ -694,13 +694,8 @@ class Handler(BaseHTTPRequestHandler):
             "<th>Episodes ok</th><th>Result</th></tr>" + "".join(rows) + "</table></div>"
         )
 
-    def _room(self, room: str):
-        found = self._scan(room)
-        if found is None:
-            return self._not_found(f"No room {room}")
-        scan, scan_file = found
-        twin = _read_json(self.out_dir / "twins" / room / "twin.json")
-        src = twin if twin else scan
+    def _fixtures_section(self, src: dict, twin: dict | None, scan_file) -> str:
+        """The room page's fixture table, from the compiled twin when there is one, else the scan."""
         fixtures = src.get("fixtures", []) or []
         fx_rows = "".join(
             "<tr>"
@@ -719,7 +714,10 @@ class Handler(BaseHTTPRequestHandler):
             + (fx_rows or "<tr><td colspan='5' class='muted'>No fixtures</td></tr>")
             + "</table></div>"
         )
+        return fx_table
 
+    def _tasks_section(self, room: str) -> str:
+        """The room page's task summary: counts per family and instruction, or how to generate them."""
         tasks = _read_json(self.out_dir / "twins" / room / "tasks.json")
         if tasks and tasks.get("tasks"):
             grouped = Counter(
@@ -743,21 +741,10 @@ class Handler(BaseHTTPRequestHandler):
                 "<code>counter_to_counter</code>. Not generated, run "
                 "<code>python -m arrival demo</code>.</p>"
             )
+        return tasks_html
 
-        info = _read_json(self.out_dir / "datasets" / room / "meta" / "info.json") or {}
-        valid = info.get("arrival_physically_valid", False)
-        valid_text = "true" if valid is True else "false"
-        info_bits = ""
-        if info:
-            info_bits = "".join(
-                f"<tr><th>{esc(k)}</th><td><code>{esc(info.get(k))}</code></td></tr>"
-                for k in ("arrival_generator", "arrival_appearance", "arrival_video_policy",
-                          "total_episodes", "total_frames", "arrival_successes",
-                          "arrival_attempts", "robot_type", "fps")
-                if k in info
-            )
-            info_bits = f"<div class='scroll'><table class='kv'>{info_bits}</table></div>"
-
+    def _report_section(self, room: str) -> str:
+        """The room page's speed and cost report for the placeholder dataset, if one was written."""
         report = _read_json(self.out_dir / "reports" / f"{room}.json")
         if report:
             rep_rows = "".join(
@@ -778,12 +765,10 @@ class Handler(BaseHTTPRequestHandler):
         else:
             report_html = (f"<p class='muted'>No report at <code>out/reports/{esc(room)}.json</code> "
                            "yet.</p>")
+        return report_html
 
-        ds_exists = (self.out_dir / "datasets" / room).is_dir()
-        dl = (f"<p><a class='btn primary' href='/download/{esc(room)}'>Download {esc(room)}.zip</a></p>"
-              if ds_exists else "<p class='muted'>Dataset not generated yet.</p>")
-
-        sim_dir = self.out_dir / "datasets" / f"{room}_sim"
+    def _sim_section(self, room: str, sim_dir: Path) -> str:
+        """The room page's MuJoCo dataset block: download link and its labels, or how to make one."""
         sim_info = _read_json(sim_dir / "meta" / "info.json") if sim_dir.is_dir() else None
         if sim_dir.is_dir():
             si = sim_info if isinstance(sim_info, dict) else {}
@@ -800,7 +785,39 @@ class Handler(BaseHTTPRequestHandler):
         else:
             sim_html = (f"<p class='muted'>No simulation dataset at <code>out/datasets/{esc(room)}_sim</code>. "
                         "Run <code>python -m arrival sim</code>.</p>")
+        return sim_html
 
+    def _room(self, room: str):
+        """GET /rooms/<room>: the room's page (fixtures, tasks, both datasets, previews and report)."""
+        found = self._scan(room)
+        if found is None:
+            return self._not_found(f"No room {room}")
+        scan, scan_file = found
+        twin = _read_json(self.out_dir / "twins" / room / "twin.json")
+        src = twin if twin else scan
+        fx_table = self._fixtures_section(src, twin, scan_file)
+        tasks_html = self._tasks_section(room)
+        info = _read_json(self.out_dir / "datasets" / room / "meta" / "info.json") or {}
+        valid = info.get("arrival_physically_valid", False)
+        valid_text = "true" if valid is True else "false"
+        info_bits = ""
+        if info:
+            info_bits = "".join(
+                f"<tr><th>{esc(k)}</th><td><code>{esc(info.get(k))}</code></td></tr>"
+                for k in ("arrival_generator", "arrival_appearance", "arrival_video_policy",
+                          "total_episodes", "total_frames", "arrival_successes",
+                          "arrival_attempts", "robot_type", "fps")
+                if k in info
+            )
+            info_bits = f"<div class='scroll'><table class='kv'>{info_bits}</table></div>"
+
+        report_html = self._report_section(room)
+        ds_exists = (self.out_dir / "datasets" / room).is_dir()
+        dl = (f"<p><a class='btn primary' href='/download/{esc(room)}'>Download {esc(room)}.zip</a></p>"
+              if ds_exists else "<p class='muted'>Dataset not generated yet.</p>")
+
+        sim_dir = self.out_dir / "datasets" / f"{room}_sim"
+        sim_html = self._sim_section(room, sim_dir)
         png = self._preview(f"{room}_sim", "contact.png")
         mp4 = self._preview(f"{room}_sim", "overview.mp4")
         previews = ""
@@ -1039,6 +1056,9 @@ class Handler(BaseHTTPRequestHandler):
         return shutil.disk_usage(p).free
 
     def _post_job(self):
+        """POST /jobs: accept a scan upload (and an optional RGB-D frames zip) and queue a job. Every cheap refusal
+        (rate limit, size, queue cap, content type, disk space, busy server) happens before the body is read; the
+        body is then streamed to a temp file, its parts are sniffed, and the job is created under the queue lock."""
         srv = self.server
         try:
             length = int(self.headers.get("Content-Length", ""))

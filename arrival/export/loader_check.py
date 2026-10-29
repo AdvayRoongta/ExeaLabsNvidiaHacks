@@ -27,6 +27,8 @@ TS_TOL = 1e-4  # seconds, same as validate.py and LeRobot's timestamp sync check
 STAT_RTOL, STAT_ATOL = 1e-3, 1e-4
 CONST_STD = 1e-8
 ARROW = {"float32": pa.float32(), "int64": pa.int64(), "bool": pa.bool_()}
+NEEDED_META = ("info.json", "modality.json", "tasks.jsonl", "episodes.jsonl", "episodes_stats.jsonl", "stats.json",
+               "embodiment.json")
 STAT_KEYS = ("mean", "std", "min", "max")
 Q = (0.01, 0.99)
 MAX_ERRORS = 60
@@ -78,19 +80,16 @@ def _close(a, b) -> bool:
     return np.shape(a) == np.shape(b) and bool(np.allclose(a, b, rtol=STAT_RTOL, atol=STAT_ATOL))
 
 
-def check_loader(root: str | Path) -> dict:
-    root = Path(root)
-    f = _Findings()
-    out = {"ok": False, "errors": f.errors, "warnings": f.warnings, "info": {}, "stats": {}}
-    meta = root / "meta"
-    need = ("info.json", "modality.json", "tasks.jsonl", "episodes.jsonl", "episodes_stats.jsonl", "stats.json",
-            "embodiment.json")
-    missing = [m for m in need if not (meta / m).is_file()]
+def _read_meta(meta: Path, f: _Findings) -> dict | None:
+    """Every meta file the loader reads, parsed and keyed by file name (JSONL files as row lists); None, with the
+    problems recorded in f, when one is missing, not JSON, or not the shape the checks read."""
+    missing = [m for m in NEEDED_META if not (meta / m).is_file()]
+    for m in missing:
+        f.err("missing_meta", f"missing meta/{m}")
     if missing:
-        for m in missing:
-            f.err("missing_meta", f"missing meta/{m}")
-        return out
-    for m in need:
+        return None
+    parsed = {}
+    for m in NEEDED_META:
         try:
             rows = read_jsonl(meta / m) if m.endswith(".jsonl") else [json.loads((meta / m).read_text())]
         except ValueError as e:
@@ -98,15 +97,52 @@ def check_loader(root: str | Path) -> dict:
             continue
         if err := meta_shape_error(m, rows):
             f.err("meta_unreadable", err)
-    if f.errors:
+        parsed[m] = rows if m.endswith(".jsonl") else rows[0]
+    return None if f.errors else parsed
+
+
+def _decode_videos(root: Path, cams: dict, episodes: list[dict], sample: set, video_tpl: str, size: int, fps,
+                   f: _Findings) -> int:
+    """Check that every episode has an mp4 per camera, and decode the sampled episodes' videos to compare frame
+    count, fps and frame shape with the metadata. Returns how many videos were decoded."""
+    n_decoded = 0
+    for cv in cams.values():
+        for e in episodes:
+            ep = e["episode_index"]
+            path = root / video_tpl.format(episode_chunk=ep // size, video_key=cv["key"], episode_index=ep)
+            rel_path = path.relative_to(root)
+            if not path.is_file():
+                f.err("missing_video", f"missing {rel_path}")
+            elif ep in sample:
+                r = _decode(path)
+                n_decoded += 1
+                if isinstance(r, str):
+                    f.err("video_decode", f"{rel_path}: {r}")
+                    continue
+                n, vfps, shape = r
+                if n != e["length"]:
+                    f.err("video_frames", f"{rel_path}: {n} frames, episode length {e['length']}")
+                if vfps is None or abs(float(vfps) - fps) > 1e-3:
+                    f.err("video_fps", f"{rel_path}: mp4 fps {vfps} != info.fps {fps}")
+                if shape != list(cv["shape"] or []):
+                    f.err("video_shape", f"{rel_path}: frame shape {shape} != info.json {cv['shape']}")
+    return n_decoded
+
+
+def check_loader(root: str | Path) -> dict:
+    """What GR00T's LeRobot loader would read from the dataset at `root`, checked offline: meta files, the
+    physically-valid labels, modality slices, video keys, annotations, every episode's parquet (shapes, finite
+    values, base motion, action windows), stats recomputed from the parquet, and decoded sample videos.
+    Returns {"ok", "errors", "warnings", "info", "stats"}; errors are {"code", "msg"} dicts."""
+    root = Path(root)
+    f = _Findings()
+    out = {"ok": False, "errors": f.errors, "warnings": f.warnings, "info": {}, "stats": {}}
+    meta = _read_meta(root / "meta", f)
+    if meta is None:
         return out
-    info = json.loads((meta / "info.json").read_text())
-    modality = json.loads((meta / "modality.json").read_text())
-    emb = json.loads((meta / "embodiment.json").read_text())
-    tasks = read_jsonl(meta / "tasks.jsonl")
-    episodes = read_jsonl(meta / "episodes.jsonl")
-    ep_stats = read_jsonl(meta / "episodes_stats.jsonl")
-    stats = json.loads((meta / "stats.json").read_text())
+    info, modality, emb = meta["info.json"], meta["modality.json"], meta["embodiment.json"]
+    tasks, episodes, ep_stats = meta["tasks.jsonl"], meta["episodes.jsonl"], meta["episodes_stats.jsonl"]
+    stats = meta["stats.json"]
     features = info.get("features", {})
 
     # what the loader would train on must be physics-checked, not scripted placeholder motion
@@ -347,27 +383,7 @@ def check_loader(root: str | Path) -> dict:
                           f"differs from the parquet recompute")
 
     # videos: an mp4 per episode and camera; decode the first, middle and last episode only
-    n_decoded = 0
-    for cv in cams.values():
-        for e in episodes:
-            ep = e["episode_index"]
-            path = root / video_tpl.format(episode_chunk=ep // size, video_key=cv["key"], episode_index=ep)
-            rel_path = path.relative_to(root)
-            if not path.is_file():
-                f.err("missing_video", f"missing {rel_path}")
-            elif ep in sample:
-                r = _decode(path)
-                n_decoded += 1
-                if isinstance(r, str):
-                    f.err("video_decode", f"{rel_path}: {r}")
-                    continue
-                n, vfps, shape = r
-                if n != e["length"]:
-                    f.err("video_frames", f"{rel_path}: {n} frames, episode length {e['length']}")
-                if vfps is None or abs(float(vfps) - fps) > 1e-3:
-                    f.err("video_fps", f"{rel_path}: mp4 fps {vfps} != info.fps {fps}")
-                if shape != list(cv["shape"] or []):
-                    f.err("video_shape", f"{rel_path}: frame shape {shape} != info.json {cv['shape']}")
+    n_decoded = _decode_videos(root, cams, episodes, sample, video_tpl, size, fps, f)
 
     out["stats"] = out_stats
     out["info"] = {

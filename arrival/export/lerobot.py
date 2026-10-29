@@ -239,6 +239,8 @@ class LeRobotWriter:
     def add_episode(self, states: np.ndarray, actions: np.ndarray, timestamps, instruction: str,
                     success: bool, videos: dict[str, np.ndarray] | None = None, extra: dict | None = None,
                     sidecar: dict | None = None) -> int:
+        """Validate one episode (shapes, finite values, instruction, the videos the policy needs) before writing
+        anything, then write its parquet and mp4s and record its meta rows. Returns the episode index."""
         ep = len(self.episodes)
         if not isinstance(instruction, str) or not instruction.strip():
             raise ValueError(f"episode {ep}: instruction must be a nonempty string")

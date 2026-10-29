@@ -765,6 +765,7 @@ def cmd_cost(a) -> int:
 
 
 def build_parser() -> argparse.ArgumentParser:
+    """The `arrival` argument parser: one subcommand per pipeline entry point, each bound to its cmd_* handler."""
     p = argparse.ArgumentParser(prog="arrival", description="Arrival: room scan -> GR00T LeRobot v2 dataset")
     sub = p.add_subparsers(dest="cmd")
     d = sub.add_parser("demo", help="compile the room and write the dataset")

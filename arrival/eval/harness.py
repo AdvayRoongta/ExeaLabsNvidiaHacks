@@ -52,6 +52,9 @@ def evaluate(twin: dict | None = None, families: list[str] | None = None, episod
              policy_name: str = "scripted", seed: int = 0, people: int = 2, holdout: bool = False,
              res: int = 128, out_dir: str | Path = "out", log=print, *, manifest: dict | None = None,
              checkpoint_id: str | None = None, base: str = "fixed", arm: str = "procedural") -> dict:
+    """Run one policy on a frozen manifest of trials (made here from the twin, or replayed from `manifest`) without
+    writing a dataset. Keeps every run under out/eval/<run_id>/ (manifest.json, episodes.jsonl, report.json) and
+    returns the report: per-family success with Wilson 95% intervals, time, human and fixture contacts."""
     from arrival.sim.policy import ScriptedExpert, VLAClient
 
     if policy_name not in ("scripted", "vla"):

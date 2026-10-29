@@ -85,6 +85,9 @@ def _size(value, what: str) -> tuple[int, int]:
 
 
 def load_manifest(directory) -> Manifest:
+    """Load and strictly check <directory>/frames_manifest.json: schema version, room id, axis convention, depth
+    unit, image sizes, the room alignment, every frame's files, intrinsics, pose and split, and the optional split
+    lists. Raises ManifestError with a machine-readable code on the first problem."""
     root = Path(directory)
     resolved_root = root.resolve()
     path = root / MANIFEST_NAME

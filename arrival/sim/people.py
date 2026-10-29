@@ -662,6 +662,84 @@ class Walkers:
             return self.visit["face"]  # square to the fridge; the toes stay out of the door's swing
         return -np.pi / 2 + self.work_yaw  # face the counter while stopped
 
+    def _walker_give(self, i: int, u_dirs: list[np.ndarray], path) -> float:
+        """Speed factor (0 to 1) walker i keeps for the other walkers in its forward corridor: it stops or slows for
+        whoever is ahead within the lateral limit, and of two walkers heading for each other the one with priority
+        (leaving the room, then not paused, then the lower index) keeps half speed while there is room."""
+        give = 1.0
+        n = len(self.paths)
+        u_i = u_dirs[i]
+        for j in range(n):
+            if j == i:
+                continue
+            v_ij = self.pos[j] - self.pos[i]
+            d_ij = float(np.linalg.norm(v_ij))
+            if d_ij < 1e-6:
+                continue
+
+            s_i = float(np.dot(u_i, v_ij))
+            if s_i > 0:
+                lat = float(np.linalg.norm(v_ij - s_i * u_i))
+                r_sum = self.specs[i]["torso_r"] + self.specs[j]["torso_r"]
+
+                u_j = u_dirs[j]
+                s_j = float(np.dot(u_j, -v_ij))
+                mutual = s_j > 0
+
+                j_leaving = self.idx[j] == 5 and self.pos[j][1] < 1.45
+                i_leaving = self.idx[i] == 5 and self.pos[i][1] < 1.45
+
+                i_has_prio = False
+                if mutual:
+                    if i_leaving and not j_leaving:
+                        i_has_prio = True
+                    elif j_leaving and not i_leaving:
+                        i_has_prio = False
+                    elif self.wait[j] > 0 and self.wait[i] <= 0:
+                        i_has_prio = True
+                    elif self.wait[i] > 0 and self.wait[j] <= 0:
+                        i_has_prio = False
+                    else:
+                        i_has_prio = (i < j)
+
+                k_i = self.idx[i] % len(path)
+                target_p = path[k_i]
+                j_at_stop = float(np.linalg.norm(self.pos[j] - target_p)) < 0.45
+                j_paused = self.wait[j] > 0
+
+                if (j_paused or j_at_stop) and self.pos[i][1] > 1.40:
+                    d_stop = max(r_sum + 0.16, 0.65)
+                    d_slow = d_stop + 0.20
+                else:
+                    d_stop = r_sum + 0.16
+                    d_slow = d_stop + 0.22
+
+                lat_limit = 0.45
+                if lat < lat_limit:
+                    if mutual and i_has_prio and d_ij > 0.42:
+                        hg = 0.5
+                    elif d_ij <= d_stop:
+                        hg = 0.0
+                    elif d_ij < d_slow:
+                        hg = (d_ij - d_stop) / (d_slow - d_stop)
+                    else:
+                        hg = 1.0
+                    give = min(give, hg)
+        return give
+
+    def _place_body(self, model, data, i: int, yaw: float, moved: float, dt: float) -> None:
+        """Advance walker i's gait by the distance it moved this step and write its pose: limbs, the mocap root at
+        its position with the stride's bob, and its heading."""
+        self.yaw[i] = yaw
+        self.phase[i] += 2 * math.pi * moved / STRIDE
+        target = min(1.0, moved / (self.speed * dt)) if moved > 0 else 0.0  # stride scaled to speed: a full stride at 45% speed puts the toe in the door swing
+        self.amp[i] += float(np.clip(target - self.amp[i], -AMP_RATE * dt, AMP_RATE * dt))
+        self.pose_limbs(model, i)
+        mid = model.body(f"person_{i}").mocapid[0]
+        bob = BOB * self.amp[i] * (1 - abs(math.cos(self.phase[i])))
+        data.mocap_pos[mid] = [self.pos[i][0], self.pos[i][1], bob]
+        data.mocap_quat[mid] = [np.cos(yaw / 2), 0, 0, np.sin(yaw / 2)]
+
     def step(self, model, data, dt: float, clearance=None) -> list[list[float]]:
         """`clearance(xy, radius)` is the walker's clearance to the closest of the robot base and arm-link
         bodies (safety.yield_clearance). A
@@ -699,63 +777,7 @@ class Walkers:
             visiting_pause = self.wait[i] > 0 and tag_i in ("open", "look", "close")
 
             if n > 1 and not visiting_pause:
-                u_i = u_dirs[i]
-                for j in range(n):
-                    if j == i:
-                        continue
-                    v_ij = self.pos[j] - self.pos[i]
-                    d_ij = float(np.linalg.norm(v_ij))
-                    if d_ij < 1e-6:
-                        continue
-
-                    s_i = float(np.dot(u_i, v_ij))
-                    if s_i > 0:
-                        lat = float(np.linalg.norm(v_ij - s_i * u_i))
-                        r_sum = self.specs[i]["torso_r"] + self.specs[j]["torso_r"]
-
-                        u_j = u_dirs[j]
-                        s_j = float(np.dot(u_j, -v_ij))
-                        mutual = s_j > 0
-
-                        j_leaving = self.idx[j] == 5 and self.pos[j][1] < 1.45
-                        i_leaving = self.idx[i] == 5 and self.pos[i][1] < 1.45
-
-                        i_has_prio = False
-                        if mutual:
-                            if i_leaving and not j_leaving:
-                                i_has_prio = True
-                            elif j_leaving and not i_leaving:
-                                i_has_prio = False
-                            elif self.wait[j] > 0 and self.wait[i] <= 0:
-                                i_has_prio = True
-                            elif self.wait[i] > 0 and self.wait[j] <= 0:
-                                i_has_prio = False
-                            else:
-                                i_has_prio = (i < j)
-
-                        k_i = self.idx[i] % len(path)
-                        target_p = path[k_i]
-                        j_at_stop = float(np.linalg.norm(self.pos[j] - target_p)) < 0.45
-                        j_paused = self.wait[j] > 0
-
-                        if (j_paused or j_at_stop) and self.pos[i][1] > 1.40:
-                            d_stop = max(r_sum + 0.16, 0.65)
-                            d_slow = d_stop + 0.20
-                        else:
-                            d_stop = r_sum + 0.16
-                            d_slow = d_stop + 0.22
-
-                        lat_limit = 0.45
-                        if lat < lat_limit:
-                            if mutual and i_has_prio and d_ij > 0.42:
-                                hg = 0.5
-                            elif d_ij <= d_stop:
-                                hg = 0.0
-                            elif d_ij < d_slow:
-                                hg = (d_ij - d_stop) / (d_slow - d_stop)
-                            else:
-                                hg = 1.0
-                            give = min(give, hg)
+                give = min(give, self._walker_give(i, u_dirs, path))
 
             held = False
             if self.wait[i] > 0:
@@ -809,15 +831,7 @@ class Walkers:
                 self.anchor[i], self.stuck[i] = self.pos[i].copy(), 0.0
             else:
                 self.stuck[i] += dt
-            self.yaw[i] = float(yaw)
-            self.phase[i] += 2 * math.pi * moved / STRIDE
-            target = min(1.0, moved / (self.speed * dt)) if moved > 0 else 0.0  # stride scaled to speed: a full stride at 45% speed puts the toe in the door swing
-            self.amp[i] += float(np.clip(target - self.amp[i], -AMP_RATE * dt, AMP_RATE * dt))
-            self.pose_limbs(model, i)
-            mid = model.body(f"person_{i}").mocapid[0]
-            bob = BOB * self.amp[i] * (1 - abs(math.cos(self.phase[i])))
-            data.mocap_pos[mid] = [self.pos[i][0], self.pos[i][1], bob]
-            data.mocap_quat[mid] = [np.cos(yaw / 2), 0, 0, np.sin(yaw / 2)]
+            self._place_body(model, data, i, float(yaw), moved, dt)
             out.append([float(self.pos[i][0]), float(self.pos[i][1])])
         if self._door is not None:
             qadr, dadr, geoms = self._door

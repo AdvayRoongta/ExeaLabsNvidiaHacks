@@ -74,7 +74,78 @@ def _check_video(path: Path, frames: int, shape: list[int]) -> str | None:
     return None if n == frames else f"{path.name}: {n} frames, episodes.jsonl length {frames}"
 
 
+def _episode_errors(name: Path, t: pa.Table, e: dict, cursor: int, s_dim: int, a_dim: int, task_ids: dict,
+                    fps) -> list[str]:
+    """Value checks on one episode's parquet table (whose schema was already checked): row count, state and action
+    widths, the global index, episode and task indexes, next.done, finite values and timestamps at row / fps."""
+    errs: list[str] = []
+    ep, length = e["episode_index"], e["length"]
+    if t.num_rows != length:
+        errs.append(f"{name}: {t.num_rows} rows, episodes.jsonl length {length}")
+    # Value checks assume the schema above; malformed columns already have a dtype error.
+    cols = {c: t.column(c).to_pylist() for c, dt in DTYPES.items()
+            if c in t.column_names and t.schema.field(c).type == dt}
+    if any(v is None or len(v) != s_dim for v in cols.get("observation.state", [])):
+        errs.append(f"{name}: observation.state length != {s_dim}")
+    if any(v is None or len(v) != a_dim for v in cols.get("action", [])):
+        errs.append(f"{name}: action length != {a_dim}")
+    if cols.get("index") != list(range(cursor, cursor + t.num_rows)):
+        errs.append(f"{name}: index is not continuous from {cursor}")
+    if set(cols.get("episode_index", [ep])) != {ep}:
+        errs.append(f"{name}: episode_index column != {ep}")
+    for column in ("task_index", "annotation.human.task_description"):
+        tis = set(cols.get(column, []))
+        if not tis <= set(task_ids):
+            errs.append(f"{name}: {column} {sorted(tis - set(task_ids))} not in tasks.jsonl")
+        elif any(task_ids[i] not in e.get("tasks", []) for i in tis):
+            errs.append(f"{name}: {column} does not match episodes.jsonl tasks")
+    done = cols.get("next.done", [])
+    if done and (done[-1] is not True or any(done[:-1])):
+        errs.append(f"{name}: next.done must be true on the last row only")
+    for c in ("observation.state", "action"):
+        v = cols.get(c)
+        if v and all(r is not None and len(r) == len(v[0]) for r in v) and not np.isfinite(np.asarray(v, dtype=np.float64)).all():
+            errs.append(f"{name}: {c} has NaN or inf")
+    ts = np.asarray(cols.get("timestamp", []), dtype=np.float64)
+    if ts.size and not np.isfinite(ts).all():
+        errs.append(f"{name}: timestamp has NaN or inf")
+    elif ts.size and fps:
+        off = np.abs(ts - np.arange(ts.size) / fps)
+        if off.max() > TS_TOL:
+            k = int(np.argmax(off > TS_TOL))
+            errs.append(f"{name}: timestamp row {k} is {ts[k]:.6f}s, expected {k / fps:.6f}s "
+                          f"(row / fps={fps})")
+    return errs
+
+
+def _video_errors(root: Path, episodes: list[dict], video_feats: dict, video_tpl: str, size: int) -> list[str]:
+    """Every episode needs an mp4 per declared video feature (the first, middle and last are decoded and checked),
+    and mp4s without a declared feature are an error too."""
+    errs: list[str] = []
+    if video_feats:
+        if not video_tpl:
+            errs.append("video features declared but info.video_path is empty")
+        else:
+            sample = {0, len(episodes) - 1, len(episodes) // 2}
+            for key, feat in video_feats.items():
+                for e in episodes:
+                    ep = e["episode_index"]
+                    path = root / video_tpl.format(episode_chunk=ep // size, video_key=key, episode_index=ep)
+                    if not path.is_file():
+                        errs.append(f"missing {path.relative_to(root)}")
+                    elif ep in sample:
+                        err = _check_video(path, e["length"], feat.get("shape", []))
+                        if err:
+                            errs.append(err)
+    elif list(root.glob("videos/**/*.mp4")):
+        errs.append("mp4s under videos/ but no video feature is declared in info.features")
+    return errs
+
+
 def validate(root: str | Path) -> list[str]:
+    """Structural problems with the LeRobot v2.1 dataset at `root`, as one sentence each (empty when it is valid):
+    meta files present and well formed, info, modality and embodiment consistent with each other, chunk layout,
+    every episode's parquet schema and values, and the declared videos."""
     root = Path(root)
     errors: list[str] = []
     if not root.is_dir():
@@ -165,60 +236,10 @@ def validate(root: str | Path) -> list[str]:
                 errors.append(f"{name}: column {c} dtype {t.schema.field(c).type} != {dt}")
         if errors and len(errors) > 50:
             return errors
-        if t.num_rows != length:
-            errors.append(f"{name}: {t.num_rows} rows, episodes.jsonl length {length}")
-        # Value checks assume the schema above; malformed columns already have a dtype error.
-        cols = {c: t.column(c).to_pylist() for c, dt in DTYPES.items()
-                if c in t.column_names and t.schema.field(c).type == dt}
-        if any(v is None or len(v) != s_dim for v in cols.get("observation.state", [])):
-            errors.append(f"{name}: observation.state length != {s_dim}")
-        if any(v is None or len(v) != a_dim for v in cols.get("action", [])):
-            errors.append(f"{name}: action length != {a_dim}")
-        if cols.get("index") != list(range(cursor, cursor + t.num_rows)):
-            errors.append(f"{name}: index is not continuous from {cursor}")
-        if set(cols.get("episode_index", [ep])) != {ep}:
-            errors.append(f"{name}: episode_index column != {ep}")
-        for column in ("task_index", "annotation.human.task_description"):
-            tis = set(cols.get(column, []))
-            if not tis <= set(task_ids):
-                errors.append(f"{name}: {column} {sorted(tis - set(task_ids))} not in tasks.jsonl")
-            elif any(task_ids[i] not in e.get("tasks", []) for i in tis):
-                errors.append(f"{name}: {column} does not match episodes.jsonl tasks")
-        done = cols.get("next.done", [])
-        if done and (done[-1] is not True or any(done[:-1])):
-            errors.append(f"{name}: next.done must be true on the last row only")
-        for c in ("observation.state", "action"):
-            v = cols.get(c)
-            if v and all(r is not None and len(r) == len(v[0]) for r in v) and not np.isfinite(np.asarray(v, dtype=np.float64)).all():
-                errors.append(f"{name}: {c} has NaN or inf")
-        ts = np.asarray(cols.get("timestamp", []), dtype=np.float64)
-        if ts.size and not np.isfinite(ts).all():
-            errors.append(f"{name}: timestamp has NaN or inf")
-        elif ts.size and fps:
-            off = np.abs(ts - np.arange(ts.size) / fps)
-            if off.max() > TS_TOL:
-                k = int(np.argmax(off > TS_TOL))
-                errors.append(f"{name}: timestamp row {k} is {ts[k]:.6f}s, expected {k / fps:.6f}s "
-                              f"(row / fps={fps})")
+        errors += _episode_errors(name, t, e, cursor, s_dim, a_dim, task_ids, fps)
         cursor += t.num_rows
 
-    if video_feats:
-        if not video_tpl:
-            errors.append("video features declared but info.video_path is empty")
-        else:
-            sample = {0, len(episodes) - 1, len(episodes) // 2}
-            for key, feat in video_feats.items():
-                for e in episodes:
-                    ep = e["episode_index"]
-                    path = root / video_tpl.format(episode_chunk=ep // size, video_key=key, episode_index=ep)
-                    if not path.is_file():
-                        errors.append(f"missing {path.relative_to(root)}")
-                    elif ep in sample:
-                        err = _check_video(path, e["length"], feat.get("shape", []))
-                        if err:
-                            errors.append(err)
-    elif list(root.glob("videos/**/*.mp4")):
-        errors.append("mp4s under videos/ but no video feature is declared in info.features")
+    errors += _video_errors(root, episodes, video_feats, video_tpl, size)
     if info.get("arrival_video_policy") not in ("all", "sparse", "none"):
         errors.append(f"unknown arrival_video_policy {info.get('arrival_video_policy')!r}")
     return errors

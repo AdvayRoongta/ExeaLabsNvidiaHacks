@@ -8,7 +8,7 @@ import math
 import random
 
 from arrival.catalog.objects import GRASPABLE, PICKABLE, TABLE_MOVABLE, WIPE_TOOLS
-from arrival.sim.geometry import has_door, has_drawers, is_table
+from arrival.sim.geometry import drawer_x, has_door, has_drawers, is_table
 from arrival.tasks.propose import LIGHTING, POSE_OFFSETS, WORDINGS, top_z
 from arrival.sim.reach import check_task, find_shift
 from arrival.sim.stand import DISHWASHER_SIDE
@@ -192,6 +192,115 @@ def room_families(twin: dict) -> tuple[str, ...]:
     return tuple(fam for fam in SIM_FAMILIES if on.get(fam))
 
 
+def _variation_pool(twin: dict, fam: str, on: dict, mobile: bool) -> list[dict]:
+    """Every variation of one family the room offers (object, source, target or fixture), before the pre-flight.
+    `on` is family_fixtures(twin); mobile=True lets a counter_to_counter target be any counter of the same run."""
+    counters, sinks = on["counter_to_counter"], on["counter_to_sink"]  # every worktop (tables too); every sink
+    pool = []
+    if fam in ("counter_to_sink", "counter_to_counter"):
+        for o in twin["objects"]:
+            if o["catalog_id"] not in GRASPABLE:  # the laptop stays out of the pick pool
+                continue
+            src = _holder(o, counters)
+            if src is None:
+                continue
+            ox = to_local(o["position"], src)[0]  # local x: distance along the source run, whatever wall it is on
+            if fam == "counter_to_sink":  # a sink set into the same run, within reach along it
+                tgts = [s for s in sinks if abs(to_local(s["position"], src)[0] - ox) < 2 * REACH - 0.3
+                        and abs(to_local(s["position"], src)[1]) < src["size"][1] / 2]
+                tgt_xy = [(s, s["position"][0], s["position"][1]) for s in tgts]
+            else:
+                tgt_xy = []
+                for c in counters:
+                    if c is src or math.cos(c.get("yaw", 0.0) - src.get("yaw", 0.0)) < 0.9:
+                        continue  # the target must continue the source run
+                    side = 1 if to_local(c["position"], src)[0] > ox else -1
+                    tx, ty = to_world((-side * (c["size"][0] / 2 - 0.12), 0.0), c)  # the target's near end
+                    if mobile or abs(to_local((tx, ty), src)[0] - ox) < 1.0:  # a fixed base sits between source and target
+                        tgt_xy.append((c, tx, ty))
+            for tgt, tx, ty in tgt_xy:
+                pool.append({"object_id": o["id"], "object_label": o["label"], "source": src["id"],
+                             "target": tgt["id"], "target_x": tx, "target_y": ty, "start": list(o["position"])})
+    elif fam == "put_in_drawer":
+        for o in twin["objects"]:
+            if o["catalog_id"] != "mug":
+                continue
+            src = _holder(o, counters)
+            if src is None or src not in on[fam] or (
+                    abs(to_local(o["position"], src)[0] - drawer_x(src, twin["fixtures"])) > 0.6):
+                continue  # the base parks beside the open drawer, so the mug must be within reach of that spot
+            pool.append({"object_id": o["id"], "object_label": o["label"], "source": src["id"], "fixture": src["id"],
+                         "start": list(o["position"])})
+    elif fam == "wipe_counter":
+        for o in twin["objects"]:
+            if o["catalog_id"] not in WIPE_TOOLS:
+                continue
+            src = _holder(o, counters)
+            if src is not None:
+                pool.append({"object_id": o["id"], "object_label": o["label"], "source": src["id"],
+                             "fixture": src["id"], "start": list(o["position"])})
+    elif fam in ("open_drawer", "open_door", "close_drawer", "close_door"):
+        pool = [{"fixture": c["id"], "name": c["id"].replace("_", " ")} for c in on[fam]]
+    elif fam == "move_on_table":
+        for c in on[fam]:
+            for o in twin["objects"]:
+                if o["catalog_id"] not in TABLE_MOVABLE:
+                    continue
+                m = table_move(c, o, twin["fixtures"], twin["walls"], twin["objects"])
+                if m:
+                    pool.append({"object_id": o["id"], "object_label": o["label"], "source": c["id"],
+                                 "target": c["id"], "start": list(o["position"]), **m})
+    elif fam == "open_oven":
+        pool = [{"fixture": f["id"], "name": f["id"].replace("_", " ")} for f in on[fam]]
+    elif fam == "open_dishwasher":
+        pool = [{"fixture": f["id"], "name": f["id"].replace("_", " ")} for f in on[fam]]
+    elif fam == "turn_on_faucet":  # the sink sits in a counter run; the lever is pushed from in front of that counter
+        pool = [{"fixture": s["id"], "name": "faucet"} for s in on[fam]]
+    elif fam in ("load_dishwasher", "unload_dishwasher"):
+        # the base parks beside the dishwasher in front of the counter, so the object (or its spot on the
+        # counter for unloading) has to be within reach of that parking spot
+        for d in on[fam]:
+            for o in twin["objects"]:
+                if o["catalog_id"] not in PICKABLE:
+                    continue
+                src = _holder(o, counters)
+                if src is None:
+                    continue
+                ox = to_local(o["position"], d)[0]  # along the dishwasher's run, from its centre
+                park = math.copysign(DISHWASHER_SIDE, ox)
+                if abs(ox - park) > 0.45 or abs(ox) < d["size"][0] / 2 + 0.1:
+                    continue
+                pool.append({"object_id": o["id"], "object_label": o["label"], "source": src["id"],
+                             "fixture": d["id"], "start": list(o["position"])})
+    elif fam == "open_fridge":
+        pool = [{"fixture": f["id"], "name": "fridge"} for f in on[fam]]
+    return pool
+
+
+def _reachable(twin: dict, fam: str, pool: list[dict], mobile: bool, arm: str, pre: dict, log) -> list[dict]:
+    """The variations of `pool` that pass the pre-flight at every start offset, some moved to a nearby stand spot
+    (`base_shift`); each rejection is counted and its reason recorded in `pre`."""
+    kept = []
+    for v in pool:
+        why = None
+        starts = _start_variants(twin, v)
+        for xy in starts:  # every start pose the offsets can give must be reachable
+            why = why or check_task(twin, {"family": fam, **v}, xy, mobile, arm)
+        shift = find_shift(twin, {"family": fam, **v}, starts, mobile, arm) if why else None
+        if shift is not None:
+            pre["shifted"] += 1
+            log(f"[sim] family {fam}: variation {v.get('object_id') or v['fixture']} stands {shift[0]:+.2f} m "
+                f"along and {shift[1]:+.2f} m out from the usual spot: {why}")
+            v, why = {**v, "base_shift": list(shift)}, None
+        if why is None:
+            kept.append(v)
+        else:
+            pre["rejected"] += 1
+            pre["reasons"].append({"family": fam, "reason": why})
+            log(f"[sim] family {fam}: variation {v.get('object_id') or v['fixture']} rejected by pre-flight: {why}")
+    return kept
+
+
 def make_tasks(twin: dict, families: list[str], n: int, seed: int = 0, people: int = 0, holdout: bool = False,
                split: str = "train", use_generated_instructions: bool = False,
                mobile: bool = False, log=print, preflight: dict | None = None, arm: str = "procedural",
@@ -209,108 +318,12 @@ def make_tasks(twin: dict, families: list[str], n: int, seed: int = 0, people: i
     use_generated_instructions draws from the Nemotron cache (or the template fallback) for `split` instead."""
     rng = random.Random(seed)
     on = family_fixtures(twin)
-    counters, sinks = on["counter_to_counter"], on["counter_to_sink"]  # every worktop (tables too); every sink
     pools: dict[str, list[dict]] = {}
     pre = preflight if preflight is not None else {}
     pre.update({"rejected": 0, "shifted": 0, "families": [], "reasons": []})
     for fam in families:
-        pool = []
-        if fam in ("counter_to_sink", "counter_to_counter"):
-            for o in twin["objects"]:
-                if o["catalog_id"] not in GRASPABLE:  # the laptop stays out of the pick pool
-                    continue
-                src = _holder(o, counters)
-                if src is None:
-                    continue
-                ox = to_local(o["position"], src)[0]  # local x: distance along the source run, whatever wall it is on
-                if fam == "counter_to_sink":  # a sink set into the same run, within reach along it
-                    tgts = [s for s in sinks if abs(to_local(s["position"], src)[0] - ox) < 2 * REACH - 0.3
-                            and abs(to_local(s["position"], src)[1]) < src["size"][1] / 2]
-                    tgt_xy = [(s, s["position"][0], s["position"][1]) for s in tgts]
-                else:
-                    tgt_xy = []
-                    for c in counters:
-                        if c is src or math.cos(c.get("yaw", 0.0) - src.get("yaw", 0.0)) < 0.9:
-                            continue  # the target must continue the source run
-                        side = 1 if to_local(c["position"], src)[0] > ox else -1
-                        tx, ty = to_world((-side * (c["size"][0] / 2 - 0.12), 0.0), c)  # the target's near end
-                        if mobile or abs(to_local((tx, ty), src)[0] - ox) < 1.0:  # a fixed base sits between source and target
-                            tgt_xy.append((c, tx, ty))
-                for tgt, tx, ty in tgt_xy:
-                    pool.append({"object_id": o["id"], "object_label": o["label"], "source": src["id"],
-                                 "target": tgt["id"], "target_x": tx, "target_y": ty, "start": list(o["position"])})
-        elif fam == "put_in_drawer":
-            from arrival.sim.geometry import drawer_x
-            for o in twin["objects"]:
-                if o["catalog_id"] != "mug":
-                    continue
-                src = _holder(o, counters)
-                if src is None or src not in on[fam] or (
-                        abs(to_local(o["position"], src)[0] - drawer_x(src, twin["fixtures"])) > 0.6):
-                    continue  # the base parks beside the open drawer, so the mug must be within reach of that spot
-                pool.append({"object_id": o["id"], "object_label": o["label"], "source": src["id"], "fixture": src["id"],
-                             "start": list(o["position"])})
-        elif fam == "wipe_counter":
-            for o in twin["objects"]:
-                if o["catalog_id"] not in WIPE_TOOLS:
-                    continue
-                src = _holder(o, counters)
-                if src is not None:
-                    pool.append({"object_id": o["id"], "object_label": o["label"], "source": src["id"],
-                                 "fixture": src["id"], "start": list(o["position"])})
-        elif fam in ("open_drawer", "open_door", "close_drawer", "close_door"):
-            pool = [{"fixture": c["id"], "name": c["id"].replace("_", " ")} for c in on[fam]]
-        elif fam == "move_on_table":
-            for c in on[fam]:
-                for o in twin["objects"]:
-                    if o["catalog_id"] not in TABLE_MOVABLE:
-                        continue
-                    m = table_move(c, o, twin["fixtures"], twin["walls"], twin["objects"])
-                    if m:
-                        pool.append({"object_id": o["id"], "object_label": o["label"], "source": c["id"],
-                                     "target": c["id"], "start": list(o["position"]), **m})
-        elif fam == "open_oven":
-            pool = [{"fixture": f["id"], "name": f["id"].replace("_", " ")} for f in on[fam]]
-        elif fam == "open_dishwasher":
-            pool = [{"fixture": f["id"], "name": f["id"].replace("_", " ")} for f in on[fam]]
-        elif fam == "turn_on_faucet":  # the sink sits in a counter run; the lever is pushed from in front of that counter
-            pool = [{"fixture": s["id"], "name": "faucet"} for s in on[fam]]
-        elif fam in ("load_dishwasher", "unload_dishwasher"):
-            # the base parks beside the dishwasher in front of the counter, so the object (or its spot on the
-            # counter for unloading) has to be within reach of that parking spot
-            for d in on[fam]:
-                for o in twin["objects"]:
-                    if o["catalog_id"] not in PICKABLE:
-                        continue
-                    src = _holder(o, counters)
-                    if src is None:
-                        continue
-                    ox = to_local(o["position"], d)[0]  # along the dishwasher's run, from its centre
-                    park = math.copysign(DISHWASHER_SIDE, ox)
-                    if abs(ox - park) > 0.45 or abs(ox) < d["size"][0] / 2 + 0.1:
-                        continue
-                    pool.append({"object_id": o["id"], "object_label": o["label"], "source": src["id"],
-                                 "fixture": d["id"], "start": list(o["position"])})
-        elif fam == "open_fridge":
-            pool = [{"fixture": f["id"], "name": "fridge"} for f in on[fam]]
-        kept = []
-        for v in pool:
-            why = None
-            starts = _start_variants(twin, v)
-            for xy in starts:  # every start pose the offsets can give must be reachable
-                why = why or check_task(twin, {"family": fam, **v}, xy, mobile, arm)
-            shift = find_shift(twin, {"family": fam, **v}, starts, mobile, arm) if why else None
-            if shift is not None:
-                pre["shifted"] += 1
-                log(f"[sim] family {fam}: variation {v.get('object_id') or v['fixture']} stands {shift[0]:+.2f} m "
-                    f"along and {shift[1]:+.2f} m out from the usual spot: {why}")
-                v, why = {**v, "base_shift": list(shift)}, None
-            if why is None:
-                kept.append(v)
-            else:
-                pre["rejected"] += 1
-                pre["reasons"].append({"family": fam, "reason": why})
-                log(f"[sim] family {fam}: variation {v.get('object_id') or v['fixture']} rejected by pre-flight: {why}")
+        pool = _variation_pool(twin, fam, on, mobile)
+        kept = _reachable(twin, fam, pool, mobile, arm, pre, log)
         if not kept:
             log(f"[sim] family {fam}: no reachable variation in this room for a {'mobile' if mobile else 'fixed'}-base arm; skipped")
             pre["families"].append(fam)
