@@ -56,6 +56,53 @@ def test_successive_episodes_have_nonblank_camera_video(twin, tmp_path):
             assert all(frame.max() > 0 and frame.std() > 1 for frame in frames), video
 
 
+def test_demo_video_episode_frames_lifecycle_on_windows(twin):
+    """MAN-1 / issue #72: demo video generator must cleanly close its renderers between tasks on Windows so
+    subsequent tasks do not lose their GL context and render black frames."""
+    import scripts.make_demo_video as mdv
+    from arrival.sim.tasks import make_tasks
+
+    tasks = make_tasks(twin, ["counter_to_sink", "open_drawer"], 2, seed=0, people=0, log=lambda *a: None)
+    sink_t, drawer_t = tasks
+    drawer_t["handle"], drawer_t["joint"] = f'{drawer_t["fixture"]}_drawer0_handle', f'{drawer_t["fixture"]}_drawer0'
+    fx = {f["id"]: f for f in twin["fixtures"]}
+    sx = (sink_t["start"][0] + fx[sink_t["target"]]["position"][0]) / 2
+
+    def run_short_episode(task, cam_cfg):
+        env = mdv.SimEnv(twin, task, res=32)
+        m = env.model
+        big = mdv.mujoco.Renderer(m, 64, 64)
+        small = mdv.mujoco.Renderer(m, 32, 32)
+        cam = mdv.mujoco.MjvCamera()
+        cam.type = mdv.mujoco.mjtCamera.mjCAMERA_FREE
+        cam.lookat[:] = cam_cfg["lookat"]
+        cam.azimuth, cam.elevation = cam_cfg["az"], cam_cfg["el"]
+        policy = mdv.ScriptedExpert()
+        policy.reset(env, task)
+        out = {"view": [], "wrist": []}
+        try:
+            for _ in range(5):
+                obs = env.obs()
+                a = policy.act(obs)
+                big.update_scene(env.data, cam)
+                out["view"].append(big.render().copy())
+                small.update_scene(env.data, "wrist")
+                out["wrist"].append(small.render().copy())
+                env.step(a)
+        finally:
+            big.close()
+            small.close()
+            env.close()
+        return out
+
+    ep0 = run_short_episode(sink_t, {"lookat": [sx, 0.45, 0.85], "az": -140, "el": -42})
+    dfx = fx[drawer_t["fixture"]]
+    ep1 = run_short_episode(drawer_t, {"lookat": [dfx["position"][0] - 0.35, 0.75, 0.6], "az": -40, "el": -42})
+
+    assert np.mean(ep0["view"]) > 10.0 and np.mean(ep0["wrist"]) > 10.0
+    assert np.mean(ep1["view"]) > 10.0 and np.mean(ep1["wrist"]) > 10.0
+
+
 def test_collect_writes_valid_dataset(twin, tmp_path):
     from arrival.export.validate import validate
 

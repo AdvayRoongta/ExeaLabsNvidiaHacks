@@ -27,8 +27,11 @@ def _mean_brightness(twin, lighting, seed) -> float:
     d = mujoco.MjData(m)
     mujoco.mj_forward(m, d)
     r = mujoco.Renderer(m, 120, 160)
-    r.update_scene(d, "overview")
-    return float(r.render().mean())
+    try:
+        r.update_scene(d, "overview")
+        return float(r.render().mean())
+    finally:
+        r.close()
 
 
 def test_brightness_follows_the_label_on_every_seed(twin):
