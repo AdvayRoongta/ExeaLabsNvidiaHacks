@@ -262,16 +262,10 @@ def _scan_sha256(info: dict) -> str | None:
     return ((info.get("arrival_provenance") or {}).get("input") or {}).get("bundle_sha256")
 
 
-def merge_shards(sources: list[str | Path], out_dir: str | Path = "out", log=print) -> dict:
-    """Join finished shard datasets into out_dir/datasets/<room>_sim. Refuses an incomplete or mixed set (a missing
-    shard, shards of different runs or simulated from different scans, an unfinished shard with no info.json) instead
-    of writing a short or mixed dataset.
-    Returns {"dataset", "report", "info"}; the caller validates the dataset."""
-    from arrival.sim.export import SimDatasetWriter
-
-    shards = [_load(p) for p in expand_sources(list(sources))]
-    if not shards:
-        raise ShardError("no shard datasets given")
+def _check_shard_set(shards: list[dict]) -> None:
+    """Refuse a shard set that is not one complete run: a missing or doubled shard, shards that differ in their
+    run settings, info, DART noise, scan or modality, task blocks that do not tile the run, damaged episode lists,
+    bad or duplicate task ids, or no episode at all. Sorts `shards` by index."""
     n = shards[0]["shard"]["count"]
     got = sorted(s["shard"]["index"] for s in shards)
     if got != list(range(n)):
@@ -333,6 +327,51 @@ def merge_shards(sources: list[str | Path], out_dir: str | Path = "out", log=pri
     if sum(len(s["episodes"]) for s in shards) == 0:
         raise ShardError("no shard holds an episode; nothing to merge")
 
+
+def _episode_files(s: dict, row: dict, cams: list[str]) -> tuple[Path, dict[str, Path]]:
+    index = row["episode_index"]
+    size = s["info"].get("chunks_size", 1000)
+    data = s["root"] / s["info"]["data_path"].format(episode_chunk=chunk_of(index, size), episode_index=index)
+    videos = {
+        cam: s["root"]
+        / s["info"]["video_path"].format(
+            episode_chunk=chunk_of(index, size), episode_index=index, video_key=f"observation.images.{cam}"
+        )
+        for cam in cams
+    }
+    return data, videos
+
+
+def _merged_skips(infos: list[dict]) -> dict:
+    """The merged run's skip counts and reasons: the pre-flight runs on the whole task list in every shard, so its
+    rejections are taken once, from shard 0; the per-task errors add up."""
+    reasons = [r for r in infos[0].get("arrival_skip_reasons", []) if r.get("stage") == "preflight"]
+    for i in infos:
+        reasons += [r for r in i.get("arrival_skip_reasons", []) if r.get("stage") != "preflight"]
+    unreachable = infos[0].get("arrival_skipped_unreachable", 0)
+    errored = sum(i.get("arrival_skipped_error", 0) for i in infos)
+    return {
+        "skipped_unreachable": unreachable,
+        "skipped_error": errored,
+        "skipped": unreachable + errored,
+        "skip_reasons": reasons[:SKIP_REASONS_KEPT],
+    }
+
+
+def merge_shards(sources: list[str | Path], out_dir: str | Path = "out", log=print) -> dict:
+    """Join finished shard datasets into out_dir/datasets/<room>_sim. Refuses an incomplete or mixed set (a missing
+    shard, shards of different runs or simulated from different scans, an unfinished shard with no info.json) instead
+    of writing a short or mixed dataset.
+    Returns {"dataset", "report", "info"}; the caller validates the dataset."""
+    from arrival.sim.export import SimDatasetWriter
+
+    shards = [_load(p) for p in expand_sources(list(sources))]
+    if not shards:
+        raise ShardError("no shard datasets given")
+    _check_shard_set(shards)
+    n = shards[0]["shard"]["count"]
+    first = shards[0]
+
     info0 = first["info"]
     room, fps = info0["arrival_room_id"], info0["fps"]
     cams = [k.removeprefix("observation.images.") for k, v in info0["features"].items() if v.get("dtype") == "video"]
@@ -340,25 +379,12 @@ def merge_shards(sources: list[str | Path], out_dir: str | Path = "out", log=pri
         raise ShardError("the shards have no video features; merge-shards requires at least one camera")
     res = info0["features"][f"observation.images.{cams[0]}"]["shape"][0]
 
-    def episode_files(s: dict, row: dict) -> tuple[Path, dict[str, Path]]:
-        index = row["episode_index"]
-        size = s["info"].get("chunks_size", 1000)
-        data = s["root"] / s["info"]["data_path"].format(episode_chunk=chunk_of(index, size), episode_index=index)
-        videos = {
-            cam: s["root"]
-            / s["info"]["video_path"].format(
-                episode_chunk=chunk_of(index, size), episode_index=index, video_key=f"observation.images.{cam}"
-            )
-            for cam in cams
-        }
-        return data, videos
-
     root = Path(out_dir) / "datasets" / f"{room}_sim"
     for s in shards:
         if root.resolve().is_relative_to(s["root"].resolve()) or s["root"].resolve().is_relative_to(root.resolve()):
             raise ShardError(f"the output {root} would overwrite or be inside shard {s['root']}; pick another --out")
         for row in s["episodes"]:
-            data, videos = episode_files(s, row)
+            data, videos = _episode_files(s, row, cams)
             for source in (data, *videos.values()):
                 if not source.is_file():
                     raise ShardError(f"missing source file {source}; merge did not touch {root}")
@@ -374,7 +400,7 @@ def merge_shards(sources: list[str | Path], out_dir: str | Path = "out", log=pri
     )
     for s in shards:
         for row in s["episodes"]:
-            data, videos = episode_files(s, row)
+            data, videos = _episode_files(s, row, cams)
             t = pq.read_table(data)
             w.add_copied(
                 np.array(t.column("observation.state").to_pylist(), dtype=np.float32),
@@ -384,17 +410,7 @@ def merge_shards(sources: list[str | Path], out_dir: str | Path = "out", log=pri
             )
 
     infos = [s["info"] for s in shards]
-    reasons = [r for r in infos[0].get("arrival_skip_reasons", []) if r.get("stage") == "preflight"]
-    for i in infos:  # the pre-flight runs on the whole task list in every shard: take it once
-        reasons += [r for r in i.get("arrival_skip_reasons", []) if r.get("stage") != "preflight"]
-    unreachable = infos[0].get("arrival_skipped_unreachable", 0)
-    errored = sum(i.get("arrival_skipped_error", 0) for i in infos)
-    skipped = {
-        "skipped_unreachable": unreachable,
-        "skipped_error": errored,
-        "skipped": unreachable + errored,
-        "skip_reasons": reasons[:SKIP_REASONS_KEPT],
-    }
+    skipped = _merged_skips(infos)
     attempts = sum(i.get("arrival_attempts", 0) for i in infos)
     merged = {"merged_shards": n, "merged_total_tasks": first["shard"]["total_tasks"]}
     if _exec_noise(info0):  # DART shards (they agree, checked above): the merged set is just as perturbed

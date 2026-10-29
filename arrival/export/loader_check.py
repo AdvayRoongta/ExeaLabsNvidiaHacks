@@ -138,45 +138,10 @@ def _decode_videos(
     return n_decoded
 
 
-def check_loader(root: str | Path) -> dict:
-    """What GR00T's LeRobot loader would read from the dataset at `root`, checked offline: meta files, the
-    physically-valid labels, modality slices, video keys, annotations, every episode's parquet (shapes, finite
-    values, base motion, action windows), stats recomputed from the parquet, and decoded sample videos.
-    Returns {"ok", "errors", "warnings", "info", "stats"}; errors are {"code", "msg"} dicts."""
-    root = Path(root)
-    f = _Findings()
-    out = {"ok": False, "errors": f.errors, "warnings": f.warnings, "info": {}, "stats": {}}
-    meta = _read_meta(root / "meta", f)
-    if meta is None:
-        return out
-    info, modality, emb = meta["info.json"], meta["modality.json"], meta["embodiment.json"]
-    tasks, episodes, ep_stats = meta["tasks.jsonl"], meta["episodes.jsonl"], meta["episodes_stats.jsonl"]
-    stats = meta["stats.json"]
-    features = info.get("features", {})
-
-    # what the loader would train on must be physics-checked, not scripted placeholder motion
-    if info.get("arrival_physically_valid") is not True:
-        f.err(
-            "placeholder",
-            "refusing: info.arrival_physically_valid is not true; this is the scripted placeholder "
-            "demo dataset, not physics-checked sim data (generate one with 'python -m arrival sim')",
-        )
-    if emb.get("joints_are_placeholder") is not False:
-        f.err(
-            "placeholder",
-            "refusing: embodiment.joints_are_placeholder is not false; the arm joints are "
-            "placeholder zeros, do not fine-tune on this dataset",
-        )
-    if f.errors:
-        return out
-
-    fps = info.get("fps")
-    if isinstance(fps, bool) or not isinstance(fps, (int, float)) or fps <= 0:
-        f.err("fps_invalid", f"info.fps must be a positive number, got {fps!r}")
-        return out
-    s_dim = (features.get("observation.state", {}).get("shape") or [0])[0]
-    a_dim = (features.get("action", {}).get("shape") or [0])[0]
-
+def _check_modality(modality: dict, emb: dict, s_dim: int, a_dim: int, f: _Findings) -> tuple:
+    """The modality.json slices against the state and action widths, and the base slice against the embodiment.
+    Returns (arm state slice, arm action slice, has_base, base_ok, base_actuated); an arm slice is None when
+    the relative arm action cannot be built."""
     # modality.json slices against the state/action dims
     arm_s = arm_a = None
     base_s = base_a = None
@@ -224,142 +189,65 @@ def check_loader(root: str | Path) -> dict:
     if has_base and not isinstance(base_actuated, bool):
         f.err("base_slice", "embodiment.json needs base_actuated true or false when modality.json has a base slice")
         base_ok = False
+    return arm_s, arm_a, has_base, base_ok, base_actuated
 
-    # video keys: original_key must be a video feature in info.json; every episode needs an mp4 per key
-    video_tpl = info.get("video_path") or ""
-    size = info.get("chunks_size", 1000)
-    cams: dict[str, dict] = {}
-    for name, v in (modality.get("video") or {}).items():
-        ok_key = v.get("original_key")
-        feat = features.get(ok_key)
-        if not feat or feat.get("dtype") != "video":
-            f.err("video_key", f"modality video.{name} original_key {ok_key!r} is not a video feature in info.json")
-            continue
-        cams[name] = {"key": ok_key, "shape": feat.get("shape")}
-        decl = (feat.get("info") or {}).get("video.fps")
-        if decl != fps:
-            f.err("video_fps", f"info.features.{ok_key}.info video.fps={decl} != info.fps={fps}")
-    if not cams:
-        f.err("video_key", "modality.json declares no usable video keys")
 
-    # annotation columns must exist and resolve in tasks.jsonl
-    task_ids = {t["task_index"] for t in tasks}
-    ann_cols = []
-    for name, a in (modality.get("annotation") or {}).items():
-        col = (a or {}).get("original_key") or f"annotation.{name}"
-        if col not in features:
-            f.err("annotation_key", f"modality annotation.{name} column {col} is not in info.features")
-        else:
-            ann_cols.append(col)
-
-    data_tpl = info.get("data_path", "")
-    n_ep = len(episodes)
-    sample = {0, n_ep - 1, n_ep // 2} if n_ep else set()
-    stat_cols = ("observation.state", "action")
-    acc = {c: {"n": 0, "sum": 0.0, "sq": 0.0, "min": None, "max": None, "rows": []} for c in stat_cols}
-    ep_local: dict[int, dict] = {}
-    rel_min, rel_max = np.inf, -np.inf
-    padded = windows = short = frames = 0
-    nonfinite_cols: set[str] = set()
-    for e in episodes:
-        ep, length = e["episode_index"], e["length"]
-        path = root / data_tpl.format(episode_chunk=ep // size, episode_index=ep)
-        name = str(path.relative_to(root))
-        if not path.is_file():
-            f.err("missing_parquet", f"missing {name}")
+def _check_table(t, name: str, features: dict, length: int, task_ids: set, ann_cols: list, fps, f: _Findings) -> None:
+    """One episode's parquet against the metadata: every info.features column present with its dtype, the row
+    count, task and annotation indices that resolve in tasks.jsonl, and timestamps on the frame_index / fps grid."""
+    for c, feat in features.items():
+        want = _arrow_type(feat)
+        if want is None:
             continue
-        try:
-            t = pq.read_table(path)
-        except Exception as ex:  # noqa: BLE001 - any read failure is a dataset error
-            f.err("parquet_unreadable", f"{name}: cannot read ({ex})")
-            continue
-        for c, feat in features.items():
-            want = _arrow_type(feat)
-            if want is None:
-                continue
-            if c not in t.column_names:
-                f.err("schema", f"{name}: info.features column {c} not in parquet")
-            elif t.schema.field(c).type != want:
-                f.err("schema", f"{name}: column {c} dtype {t.schema.field(c).type} != info.features {want}")
-        if t.num_rows != length:
-            f.err("episode_length", f"{name}: {t.num_rows} rows, episodes.jsonl length {length}")
-        frames += t.num_rows
-        for c in ["task_index", *ann_cols]:
-            if c in t.column_names:
-                bad = sorted(set(t.column(c).to_pylist()) - task_ids)
-                if bad:
-                    f.err("task_index_unresolved", f"{name}: {c} {bad} has no row in tasks.jsonl")
-        if "timestamp" in t.column_names and t.num_rows:
-            ts = np.asarray(t.column("timestamp").to_pylist(), dtype=np.float64)
-            off = np.abs(ts - np.arange(ts.size) / fps)
-            if not (off <= TS_TOL).all():
-                k = int(np.argmax(~(off <= TS_TOL)))
-                f.err(
-                    "timestamp_fps",
-                    f"{name}: timestamp row {k} is {ts[k]:.6f}s, expected {k / fps:.6f}s "
-                    f"(frame_index / info.fps={fps})",
-                )
-        # action horizon: starts in the last HORIZON-1 frames read past the end and are padded
-        windows += t.num_rows
-        if t.num_rows < HORIZON:
-            short += 1
-            padded += t.num_rows
-            f.err("short_episode", f"{name}: {t.num_rows} frames < {HORIZON}-step action horizon")
-        else:
-            padded += HORIZON - 1
-        if any(c not in t.column_names for c in stat_cols) or not t.num_rows:
-            continue
-        s = np.asarray(t.column("observation.state").to_pylist(), dtype=np.float64)
-        a = np.asarray(t.column("action").to_pylist(), dtype=np.float64)
-        if s.ndim != 2 or a.ndim != 2 or s.shape[1] != s_dim or a.shape[1] != a_dim:
+        if c not in t.column_names:
+            f.err("schema", f"{name}: info.features column {c} not in parquet")
+        elif t.schema.field(c).type != want:
+            f.err("schema", f"{name}: column {c} dtype {t.schema.field(c).type} != info.features {want}")
+    if t.num_rows != length:
+        f.err("episode_length", f"{name}: {t.num_rows} rows, episodes.jsonl length {length}")
+    for c in ["task_index", *ann_cols]:
+        if c in t.column_names:
+            bad = sorted(set(t.column(c).to_pylist()) - task_ids)
+            if bad:
+                f.err("task_index_unresolved", f"{name}: {c} {bad} has no row in tasks.jsonl")
+    if "timestamp" in t.column_names and t.num_rows:
+        ts = np.asarray(t.column("timestamp").to_pylist(), dtype=np.float64)
+        off = np.abs(ts - np.arange(ts.size) / fps)
+        if not (off <= TS_TOL).all():
+            k = int(np.argmax(~(off <= TS_TOL)))
             f.err(
-                "schema",
-                f"{name}: state {s.shape} / action {a.shape} do not match info.features dims ({s_dim}, {a_dim})",
+                "timestamp_fps",
+                f"{name}: timestamp row {k} is {ts[k]:.6f}s, expected {k / fps:.6f}s (frame_index / info.fps={fps})",
             )
-            continue
-        fin = True
-        for c, x in (("observation.state", s), ("action", a)):
-            if not np.isfinite(x).all():
-                fin = False
-                nonfinite_cols.add(c)
-                f.err("nonfinite", f"{name}: {c} has NaN or inf")
-        if not fin:
-            continue
-        if base_ok:
-            for c, x in (("observation.state", s), ("action", a)):
-                b = x[:, BASE_SLICE[0] : BASE_SLICE[1]]
-                if not base_actuated:
-                    if len(b) and float(np.ptp(b, axis=0).max()) > BASE_HOLD_TOL:
-                        f.err(
-                            "base_fixed_moves",
-                            f"{name}: {c} base moves (range "
-                            f"{float(np.ptp(b, axis=0).max()):.4f}) but embodiment.base_actuated is false",
-                        )
-                elif len(b) > 1:
-                    v = np.linalg.norm(np.diff(b[:, :2], axis=0), axis=1) * fps
-                    w = np.abs(np.diff(b[:, 2])) * fps
-                    if v.max() > BASE_SPEED + BASE_SPEED_TOL or w.max() > BASE_TURN + BASE_SPEED_TOL:
-                        f.err(
-                            "base_speed",
-                            f"{name}: {c} base moves {v.max():.3f} m/s and {w.max():.3f} rad/s, over the "
-                            f"{BASE_SPEED} m/s and {BASE_TURN} rad/s the writer limits it to (a teleport, not a drive)",
-                        )
-        if arm_s and arm_a:
-            # relative arm action as the loader builds it: action[t+k] - state[t], tail padded with the last action
-            idx = np.minimum(np.arange(len(s))[:, None] + np.arange(HORIZON)[None, :], len(s) - 1)
-            rel = a[idx][:, :, arm_a[0] : arm_a[1]] - s[:, None, arm_s[0] : arm_s[1]]
-            rel_min, rel_max = min(rel_min, float(rel.min())), max(rel_max, float(rel.max()))
-        for c, x in (("observation.state", s), ("action", a)):
-            d = acc[c]
-            d["n"] += len(x)
-            d["sum"] = d["sum"] + x.sum(0)
-            d["sq"] = d["sq"] + (x**2).sum(0)
-            d["min"] = x.min(0) if d["min"] is None else np.minimum(d["min"], x.min(0))
-            d["max"] = x.max(0) if d["max"] is None else np.maximum(d["max"], x.max(0))
-            d["rows"].append(x.astype(np.float32))
-            ep_local.setdefault(ep, {})[c] = {"mean": x.mean(0), "std": x.std(0), "min": x.min(0), "max": x.max(0)}
 
-    # stats: recompute from the parquet, compare with stats.json and episodes_stats.jsonl
+
+def _check_base_motion(s: np.ndarray, a: np.ndarray, name: str, base_actuated: bool, fps, f: _Findings) -> None:
+    """A fixed base must hold still; a driven base must stay within the speed and turn rate the writer allows."""
+    for c, x in (("observation.state", s), ("action", a)):
+        b = x[:, BASE_SLICE[0] : BASE_SLICE[1]]
+        if not base_actuated:
+            if len(b) and float(np.ptp(b, axis=0).max()) > BASE_HOLD_TOL:
+                f.err(
+                    "base_fixed_moves",
+                    f"{name}: {c} base moves (range "
+                    f"{float(np.ptp(b, axis=0).max()):.4f}) but embodiment.base_actuated is false",
+                )
+        elif len(b) > 1:
+            v = np.linalg.norm(np.diff(b[:, :2], axis=0), axis=1) * fps
+            w = np.abs(np.diff(b[:, 2])) * fps
+            if v.max() > BASE_SPEED + BASE_SPEED_TOL or w.max() > BASE_TURN + BASE_SPEED_TOL:
+                f.err(
+                    "base_speed",
+                    f"{name}: {c} base moves {v.max():.3f} m/s and {w.max():.3f} rad/s, over the "
+                    f"{BASE_SPEED} m/s and {BASE_TURN} rad/s the writer limits it to (a teleport, not a drive)",
+                )
+
+
+def _compare_stats(
+    acc: dict, nonfinite_cols: set, stats: dict, ep_stats: list, ep_local: dict, n_ep: int, base_ok, base_actuated, f
+) -> dict:
+    """Stats recomputed from the parquet accumulators, compared with stats.json and episodes_stats.jsonl; constant
+    dimensions are warned about (a parked base once, as such). Returns the recomputed stats per column."""
     out_stats = {}
     for c, d in acc.items():
         if not d["n"] or c in nonfinite_cols:
@@ -432,6 +320,144 @@ def check_loader(root: str | Path) -> dict:
                         f"episodes_stats.jsonl episode {row.get('episode_index')} {c}.{k} "
                         f"differs from the parquet recompute",
                     )
+    return out_stats
+
+
+def check_loader(root: str | Path) -> dict:
+    """What GR00T's LeRobot loader would read from the dataset at `root`, checked offline: meta files, the
+    physically-valid labels, modality slices, video keys, annotations, every episode's parquet (shapes, finite
+    values, base motion, action windows), stats recomputed from the parquet, and decoded sample videos.
+    Returns {"ok", "errors", "warnings", "info", "stats"}; errors are {"code", "msg"} dicts."""
+    root = Path(root)
+    f = _Findings()
+    out = {"ok": False, "errors": f.errors, "warnings": f.warnings, "info": {}, "stats": {}}
+    meta = _read_meta(root / "meta", f)
+    if meta is None:
+        return out
+    info, modality, emb = meta["info.json"], meta["modality.json"], meta["embodiment.json"]
+    tasks, episodes, ep_stats = meta["tasks.jsonl"], meta["episodes.jsonl"], meta["episodes_stats.jsonl"]
+    stats = meta["stats.json"]
+    features = info.get("features", {})
+
+    # what the loader would train on must be physics-checked, not scripted placeholder motion
+    if info.get("arrival_physically_valid") is not True:
+        f.err(
+            "placeholder",
+            "refusing: info.arrival_physically_valid is not true; this is the scripted placeholder "
+            "demo dataset, not physics-checked sim data (generate one with 'python -m arrival sim')",
+        )
+    if emb.get("joints_are_placeholder") is not False:
+        f.err(
+            "placeholder",
+            "refusing: embodiment.joints_are_placeholder is not false; the arm joints are "
+            "placeholder zeros, do not fine-tune on this dataset",
+        )
+    if f.errors:
+        return out
+
+    fps = info.get("fps")
+    if isinstance(fps, bool) or not isinstance(fps, (int, float)) or fps <= 0:
+        f.err("fps_invalid", f"info.fps must be a positive number, got {fps!r}")
+        return out
+    s_dim = (features.get("observation.state", {}).get("shape") or [0])[0]
+    a_dim = (features.get("action", {}).get("shape") or [0])[0]
+
+    arm_s, arm_a, has_base, base_ok, base_actuated = _check_modality(modality, emb, s_dim, a_dim, f)
+
+    # video keys: original_key must be a video feature in info.json; every episode needs an mp4 per key
+    video_tpl = info.get("video_path") or ""
+    size = info.get("chunks_size", 1000)
+    cams: dict[str, dict] = {}
+    for name, v in (modality.get("video") or {}).items():
+        ok_key = v.get("original_key")
+        feat = features.get(ok_key)
+        if not feat or feat.get("dtype") != "video":
+            f.err("video_key", f"modality video.{name} original_key {ok_key!r} is not a video feature in info.json")
+            continue
+        cams[name] = {"key": ok_key, "shape": feat.get("shape")}
+        decl = (feat.get("info") or {}).get("video.fps")
+        if decl != fps:
+            f.err("video_fps", f"info.features.{ok_key}.info video.fps={decl} != info.fps={fps}")
+    if not cams:
+        f.err("video_key", "modality.json declares no usable video keys")
+
+    # annotation columns must exist and resolve in tasks.jsonl
+    task_ids = {t["task_index"] for t in tasks}
+    ann_cols = []
+    for name, a in (modality.get("annotation") or {}).items():
+        col = (a or {}).get("original_key") or f"annotation.{name}"
+        if col not in features:
+            f.err("annotation_key", f"modality annotation.{name} column {col} is not in info.features")
+        else:
+            ann_cols.append(col)
+
+    data_tpl = info.get("data_path", "")
+    n_ep = len(episodes)
+    sample = {0, n_ep - 1, n_ep // 2} if n_ep else set()
+    stat_cols = ("observation.state", "action")
+    acc = {c: {"n": 0, "sum": 0.0, "sq": 0.0, "min": None, "max": None, "rows": []} for c in stat_cols}
+    ep_local: dict[int, dict] = {}
+    rel_min, rel_max = np.inf, -np.inf
+    padded = windows = short = frames = 0
+    nonfinite_cols: set[str] = set()
+    for e in episodes:
+        ep, length = e["episode_index"], e["length"]
+        path = root / data_tpl.format(episode_chunk=ep // size, episode_index=ep)
+        name = str(path.relative_to(root))
+        if not path.is_file():
+            f.err("missing_parquet", f"missing {name}")
+            continue
+        try:
+            t = pq.read_table(path)
+        except Exception as ex:  # noqa: BLE001 - any read failure is a dataset error
+            f.err("parquet_unreadable", f"{name}: cannot read ({ex})")
+            continue
+        _check_table(t, name, features, length, task_ids, ann_cols, fps, f)
+        frames += t.num_rows
+        # action horizon: starts in the last HORIZON-1 frames read past the end and are padded
+        windows += t.num_rows
+        if t.num_rows < HORIZON:
+            short += 1
+            padded += t.num_rows
+            f.err("short_episode", f"{name}: {t.num_rows} frames < {HORIZON}-step action horizon")
+        else:
+            padded += HORIZON - 1
+        if any(c not in t.column_names for c in stat_cols) or not t.num_rows:
+            continue
+        s = np.asarray(t.column("observation.state").to_pylist(), dtype=np.float64)
+        a = np.asarray(t.column("action").to_pylist(), dtype=np.float64)
+        if s.ndim != 2 or a.ndim != 2 or s.shape[1] != s_dim or a.shape[1] != a_dim:
+            f.err(
+                "schema",
+                f"{name}: state {s.shape} / action {a.shape} do not match info.features dims ({s_dim}, {a_dim})",
+            )
+            continue
+        fin = True
+        for c, x in (("observation.state", s), ("action", a)):
+            if not np.isfinite(x).all():
+                fin = False
+                nonfinite_cols.add(c)
+                f.err("nonfinite", f"{name}: {c} has NaN or inf")
+        if not fin:
+            continue
+        if base_ok:
+            _check_base_motion(s, a, name, base_actuated, fps, f)
+        if arm_s and arm_a:
+            # relative arm action as the loader builds it: action[t+k] - state[t], tail padded with the last action
+            idx = np.minimum(np.arange(len(s))[:, None] + np.arange(HORIZON)[None, :], len(s) - 1)
+            rel = a[idx][:, :, arm_a[0] : arm_a[1]] - s[:, None, arm_s[0] : arm_s[1]]
+            rel_min, rel_max = min(rel_min, float(rel.min())), max(rel_max, float(rel.max()))
+        for c, x in (("observation.state", s), ("action", a)):
+            d = acc[c]
+            d["n"] += len(x)
+            d["sum"] = d["sum"] + x.sum(0)
+            d["sq"] = d["sq"] + (x**2).sum(0)
+            d["min"] = x.min(0) if d["min"] is None else np.minimum(d["min"], x.min(0))
+            d["max"] = x.max(0) if d["max"] is None else np.maximum(d["max"], x.max(0))
+            d["rows"].append(x.astype(np.float32))
+            ep_local.setdefault(ep, {})[c] = {"mean": x.mean(0), "std": x.std(0), "min": x.min(0), "max": x.max(0)}
+
+    out_stats = _compare_stats(acc, nonfinite_cols, stats, ep_stats, ep_local, n_ep, base_ok, base_actuated, f)
 
     # videos: an mp4 per episode and camera; decode the first, middle and last episode only
     n_decoded = _decode_videos(root, cams, episodes, sample, video_tpl, size, fps, f)

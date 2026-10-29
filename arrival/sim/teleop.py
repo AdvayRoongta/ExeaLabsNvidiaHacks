@@ -147,6 +147,107 @@ class TerminalKeys:
         return keys
 
 
+def _step(env, ctl: TeleopController, rec: dict, record: bool, viewer) -> None:
+    """One control step at the controller's current action, recorded first when `record`."""
+    a = ctl.action()
+    if record:
+        rec["states"].append(env.state())
+        rec["actions"].append(_full_action(a, rec["states"][-1]))
+        for cam in rec["videos"]:
+            rec["videos"][cam].append(env.render(cam))
+    env.step(a)
+    rec["people_xy"].append(env.people_xy)
+    if viewer is not None:
+        viewer.sync()
+
+
+def _attempt(twin: dict, task: dict, frames: Iterator, res: int, record: bool, realtime: bool, viewer_factory, clock):
+    """One attempt at `task`, driven by `frames` until the operator judges (Enter) or quits. Operator time runs from
+    the moment the scene is ready to the moment the attempt is judged. Returns the outcome, the judgement, the
+    timing and the recorded states, actions and frames."""
+    from arrival.sim.collect import SimEnv
+    from arrival.sim.robot import FPS
+
+    env = SimEnv(twin, task, res=res)
+    viewer = viewer_factory(env) if viewer_factory else None
+    ctl = TeleopController(env)
+    rec = {"states": [], "actions": [], "videos": {"ego_view": [], "wrist": []}, "people_xy": []}
+    env.safety.reset()
+    t0, outcome, steps = clock(), None, 0
+    try:
+        while outcome is None:
+            tick = time.perf_counter()
+            keys = next(frames, None)
+            if keys is None:
+                outcome = "quit"
+                break
+            for k in keys:
+                outcome = ctl.apply(k) or outcome
+            _step(env, ctl, rec, record, viewer)
+            steps += 1
+            if realtime:
+                time.sleep(max(0.0, 1.0 / FPS - (time.perf_counter() - tick)))
+        if outcome == "judge":
+            for _ in range(HOLD_FRAMES):  # the object must have come to rest for the oracle
+                _step(env, ctl, rec, record, viewer)
+            ok, detail = env.success(task)
+            safety = env.safety.summary()
+            ok = bool(ok and not safety["human_contact"])
+        else:
+            ok, detail, safety = False, {"ended_by": outcome}, env.safety.summary()
+    finally:
+        if viewer is not None:
+            viewer.close()
+        env.close()
+    return {
+        "outcome": outcome,
+        "steps": steps,
+        "seconds": clock() - t0,
+        "ok": ok,
+        "detail": detail,
+        "safety": safety,
+        "rec": rec,
+        "max_ik_error": ctl.max_ik_error,
+    }
+
+
+def _write_baseline(
+    out_dir: Path,
+    room: str,
+    family: str,
+    people: int,
+    successes: int,
+    n_attempts: int,
+    operator_seconds: float,
+    operator_usd_per_hour: float,
+    setup_usd: float,
+    setup_assumptions: list[str] | None,
+    log_path: Path,
+) -> Path:
+    """Write teleop_baseline.json in the shape `arrival.eval.cost.load_baseline` validates; returns its path."""
+    baseline = {
+        "task": family,
+        "room": room,
+        "n_success": successes,
+        "n_attempts": n_attempts,
+        "operator_seconds_total": round(operator_seconds, 3),
+        "cost_basis_usd": round(operator_seconds / 3600 * operator_usd_per_hour + setup_usd, 4),
+        "operator_usd_per_hour": operator_usd_per_hour,
+        "setup_usd": setup_usd,
+        "setup_assumptions": list(setup_assumptions or [])
+        + [
+            f"keyboard teleop in the MuJoCo twin of {room}, {people} walking people, success by the sim oracle",
+            "operator time per attempt runs from scene ready to judgement and includes failed attempts",
+        ],
+        "measured": True,
+        "created_unix": int(time.time()),
+        "attempts_log": str(log_path),
+    }
+    bp = out_dir / "teleop_baseline.json"
+    bp.write_text(json.dumps(baseline, indent=2) + "\n")
+    return bp
+
+
 def run(
     twin: dict,
     frames: Iterable[list[str]],
@@ -167,7 +268,6 @@ def run(
 ) -> dict:
     """Teleoperate attempts until `target_successes` succeed or the operator quits (or `frames` runs out).
     `frames` yields the keys typed during each 1/20 s control step. Returns a summary with the paths written."""
-    from arrival.sim.collect import SimEnv
     from arrival.sim.export import SimDatasetWriter
     from arrival.sim.robot import FPS
     from arrival.sim.tasks import finish_task, make_tasks
@@ -192,58 +292,10 @@ def run(
     attempts, successes, operator_seconds, quit_ = [], 0, 0.0, False
     while successes < target_successes and not quit_:
         task = tasks[len(attempts) % len(tasks)]
-        env = SimEnv(twin, task, res=res)
-        viewer = viewer_factory(env) if viewer_factory else None
-        ctl = TeleopController(env)
-        rec = {"states": [], "actions": [], "videos": {"ego_view": [], "wrist": []}, "people_xy": []}
-        env.safety.reset()
         log(f"[teleop] attempt {len(attempts) + 1}: {task['instruction']}  ({successes}/{target_successes} done)")
-        t0, outcome, steps = clock(), None, 0
-        try:
-            while outcome is None:
-                tick = time.perf_counter()
-                keys = next(frames, None)
-                if keys is None:
-                    outcome = "quit"
-                    break
-                for k in keys:
-                    outcome = ctl.apply(k) or outcome
-                a = ctl.action()
-                if record:
-                    rec["states"].append(env.state())
-                    rec["actions"].append(_full_action(a, rec["states"][-1]))
-                    for cam in rec["videos"]:
-                        rec["videos"][cam].append(env.render(cam))
-                env.step(a)
-                rec["people_xy"].append(env.people_xy)
-                steps += 1
-                if viewer is not None:
-                    viewer.sync()
-                if realtime:
-                    time.sleep(max(0.0, 1.0 / FPS - (time.perf_counter() - tick)))
-            if outcome == "judge":
-                for _ in range(HOLD_FRAMES):  # the object must have come to rest for the oracle
-                    a = ctl.action()
-                    if record:
-                        rec["states"].append(env.state())
-                        rec["actions"].append(_full_action(a, rec["states"][-1]))
-                        for cam in rec["videos"]:
-                            rec["videos"][cam].append(env.render(cam))
-                    env.step(a)
-                    rec["people_xy"].append(env.people_xy)
-                    if viewer is not None:
-                        viewer.sync()
-                ok, detail = env.success(task)
-                safety = env.safety.summary()
-                ok = bool(ok and not safety["human_contact"])
-            else:
-                ok, detail, safety = False, {"ended_by": outcome}, env.safety.summary()
-        finally:
-            if viewer is not None:
-                viewer.close()
-            env.close()
-        seconds = clock() - t0
-        if outcome == "quit" and steps == 0:
+        r = _attempt(twin, task, frames, res, record, realtime, viewer_factory, clock)
+        outcome, seconds, ok, detail = r["outcome"], r["seconds"], r["ok"], r["detail"]
+        if outcome == "quit" and r["steps"] == 0:
             break  # quit before touching anything: not an attempt
         operator_seconds += seconds
         row = {
@@ -252,11 +304,11 @@ def run(
             "instruction": task["instruction"],
             "success": ok,
             "operator_seconds": round(seconds, 3),
-            "control_steps": steps,
+            "control_steps": r["steps"],
             "ended_by": outcome,
             "detail": detail,
-            "human_contact": safety["human_contact"],
-            "max_ik_error_m": round(float(ctl.max_ik_error), 4),
+            "human_contact": r["safety"]["human_contact"],
+            "max_ik_error_m": round(float(r["max_ik_error"]), 4),
         }
         attempts.append(row)
         with open(log_path, "a") as f:
@@ -264,12 +316,13 @@ def run(
         if ok:
             successes += 1
             if writer is not None:
+                rec = r["rec"]
                 ep = {
                     "states": np.array(rec["states"]),
                     "actions": np.array(rec["actions"]),
                     "videos": {c: np.array(v) for c, v in rec["videos"].items()},
                     "detail": detail,
-                    "safety": safety,
+                    "safety": r["safety"],
                     "people_xy": rec["people_xy"],
                 }
                 writer.add_episode(ep, task)
@@ -297,26 +350,19 @@ def run(
     if successes == 0:
         log("[teleop] no successful attempt, so no teleop_baseline.json (the cost report needs n_success >= 1)")
         return summary
-    baseline = {
-        "task": family,
-        "room": room,
-        "n_success": successes,
-        "n_attempts": len(attempts),
-        "operator_seconds_total": round(operator_seconds, 3),
-        "cost_basis_usd": round(operator_seconds / 3600 * operator_usd_per_hour + setup_usd, 4),
-        "operator_usd_per_hour": operator_usd_per_hour,
-        "setup_usd": setup_usd,
-        "setup_assumptions": list(setup_assumptions or [])
-        + [
-            f"keyboard teleop in the MuJoCo twin of {room}, {people} walking people, success by the sim oracle",
-            "operator time per attempt runs from scene ready to judgement and includes failed attempts",
-        ],
-        "measured": True,
-        "created_unix": int(time.time()),
-        "attempts_log": str(log_path),
-    }
-    bp = out_dir / "teleop_baseline.json"
-    bp.write_text(json.dumps(baseline, indent=2) + "\n")
+    bp = _write_baseline(
+        out_dir,
+        room,
+        family,
+        people,
+        successes,
+        len(attempts),
+        operator_seconds,
+        operator_usd_per_hour,
+        setup_usd,
+        setup_assumptions,
+        log_path,
+    )
     summary["baseline"] = str(bp)
     return summary
 

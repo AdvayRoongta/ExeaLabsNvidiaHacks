@@ -258,6 +258,33 @@ def _read_video(path: Path) -> list[np.ndarray]:
         return [np.asarray(f) for f in r]
 
 
+def _vary_frame(cli, orig: np.ndarray, ep: int, fi: int, row: dict, mask, edge_min: float, mask_max: float):
+    """Ask the backend for a variant of one frame and record the call in `row` (latency, parameters, the
+    check_frame verdict as "ok" or "rejected"). Returns the variant when it passed, else None; a backend error
+    leaves row["status"] at "failed" with the error as its reason."""
+    t0 = time.perf_counter()
+    try:
+        out, params = cli(orig, ep, fi)
+        if not isinstance(out, np.ndarray):
+            raise ValueError("backend frame must be a numpy array")
+        if not isinstance(params, dict):
+            raise ValueError("backend parameters must be a JSON object")
+        json.dumps(params)  # sidecar parameters must be serializable
+    except Exception as e:  # noqa: BLE001 - any backend error leaves the frame original
+        row.update(latency_ms=round((time.perf_counter() - t0) * 1000, 2), reason=str(e))
+        return None
+    row.update(
+        latency_ms=round((time.perf_counter() - t0) * 1000, 2),
+        model=cli.model,
+        version=cli.version,
+        parameters={**row["parameters"], **params},
+    )
+    chk = check_frame(orig, out, mask, edge_min, mask_max)
+    row.update(edge_corr=chk["edge_corr"], mask_change=chk["mask_change"], reason=chk["reason"])
+    row["status"] = "ok" if chk["ok"] else "rejected"
+    return out if chk["ok"] else None
+
+
 def vary_dataset(
     src: str | Path,
     dst: str | Path,
@@ -336,39 +363,18 @@ def vary_dataset(
                 counts["failed"] += 1
                 rows.append(row)
                 continue
-            t0 = time.perf_counter()
-            try:
-                out, params = cli(orig, ep, fi)
-                if not isinstance(out, np.ndarray):
-                    raise ValueError("backend frame must be a numpy array")
-                if not isinstance(params, dict):
-                    raise ValueError("backend parameters must be a JSON object")
-                json.dumps(params)  # sidecar parameters must be serializable
-            except Exception as e:  # noqa: BLE001 - any backend error leaves the frame original
-                row.update(latency_ms=round((time.perf_counter() - t0) * 1000, 2), reason=str(e))
+            out = _vary_frame(cli, orig, ep, fi, row, mask, edge_min, mask_max)
+            rows.append(row)
+            if row["status"] == "failed":
                 counts["failed"] += 1
                 consecutive += 1
-                rows.append(row)
                 continue
             consecutive = 0
-            row.update(
-                latency_ms=round((time.perf_counter() - t0) * 1000, 2),
-                model=cli.model,
-                version=cli.version,
-                parameters={**row["parameters"], **params},
-            )
-            chk = check_frame(orig, out, mask, edge_min, mask_max)
-            row.update(edge_corr=chk["edge_corr"], mask_change=chk["mask_change"], reason=chk["reason"])
-            if chk["ok"]:
-                row["status"] = "ok"
-                counts["ok"] += 1
+            counts[row["status"]] += 1
+            if out is not None:
                 cosmos_ok += cli.name == "cosmos"
                 frames[fi] = out
                 changed = True
-            else:
-                row["status"] = "rejected"
-                counts["rejected"] += 1
-            rows.append(row)
         if changed:
             write_video(dst / VIDEO_DIR / key / vid.name, np.stack(frames), fps)
     label = "cosmos" if cosmos_ok else ("local_stub" if backend == "local_stub" and counts["ok"] else "none")

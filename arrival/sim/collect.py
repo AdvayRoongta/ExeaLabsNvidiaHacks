@@ -594,6 +594,52 @@ def _apply_plan(planner, task: dict, twin: dict, log) -> None:
     log(f"[sim] task {task['task_id']}: planned by {planner.source} -> {plan}")
 
 
+def _restore(done: list[dict], per: dict, skips: list[dict]) -> tuple[float, int]:
+    """Count a resumed run's journaled tasks into the per-family rows and the skip list, as if they had just run.
+    Returns the seconds they took and how many were skipped with an error."""
+    prior_seconds, errors = 0.0, 0
+    for r in done:
+        prior_seconds += r["seconds"]
+        if r["outcome"] == "skip":
+            errors += 1
+            skips.append({"stage": r["stage"], "task_id": r["task_id"], "family": r["family"], "reason": r["reason"]})
+            continue
+        fam = _family_row(per, r["family"])
+        fam["attempts"] += 1
+        fam["seconds"] += r["seconds"]
+        fam["successes"] += r["outcome"] == "ok"
+        fam["human_contacts"] += r["human_contact"]
+        fam["fridge_visits"] += r["fridge_visit"]
+        fam["door_contacts"] += r["door_contact"]
+    return prior_seconds, errors
+
+
+def _rollout(
+    twin: dict, task: dict, policy, policy_name: str, *, preview, overview, res, cameras, base, arm, exec_noise, log
+) -> tuple[dict | None, dict | None]:
+    """Build the task's env and run one episode. Returns (episode, None), or (None, skip) with the stage that raised
+    ("build" or "rollout") and the reason: one bad geometry costs this task, not the run. An unconfigured VLA policy
+    and, under the VLA policy, an OSError (the policy server did not answer) are not the task's fault and re-raise."""
+    from arrival.sim.policy import VLANotConfigured
+
+    stage = "build"
+    try:
+        env = SimEnv(twin, task, res=res, cameras=cameras, overview=overview, base=base, arm=arm)
+        stage = "rollout"
+        try:
+            if env.people_note:
+                log(f"[sim] {task['task_id']}: {env.people_note}")
+            return run_episode(env, policy, task, preview=preview, exec_noise=exec_noise), None
+        finally:
+            env.close()  # idempotent; frees both GL renderers when the policy or the episode raises
+    except VLANotConfigured:
+        raise
+    except Exception as e:  # noqa: BLE001 - nothing is written for a skipped task
+        if isinstance(e, OSError) and policy_name == "vla":
+            raise
+        return None, {"stage": stage, "task_id": task["task_id"], "family": task["family"], "reason": one_line(e)}
+
+
 def collect(
     twin: dict,
     families: list[str],
@@ -631,7 +677,7 @@ def collect(
     refused with a ShardError) and the result is the dataset an uninterrupted run would have written."""
     from arrival.jobs.shards import Journal, shard_dir, shard_range, twin_sha256
     from arrival.sim.export import SimDatasetWriter
-    from arrival.sim.policy import ScriptedExpert, VLAClient, VLANotConfigured, VLMPlanner
+    from arrival.sim.policy import ScriptedExpert, VLAClient, VLMPlanner
     from arrival.sim.tasks import finish_task, make_tasks
 
     cameras = ("ego_view", "wrist", "overview") if exocentric else ("ego_view", "wrist")
@@ -713,21 +759,7 @@ def collect(
         writer.restore(
             [r["episode"] for r in done if r["outcome"] == "ok"], [r["stats"] for r in done if r["outcome"] == "ok"]
         )
-        for r in done:
-            prior_seconds += r["seconds"]
-            if r["outcome"] == "skip":
-                errors += 1
-                skips.append(
-                    {"stage": r["stage"], "task_id": r["task_id"], "family": r["family"], "reason": r["reason"]}
-                )
-                continue
-            fam = _family_row(per, r["family"])
-            fam["attempts"] += 1
-            fam["seconds"] += r["seconds"]
-            fam["successes"] += r["outcome"] == "ok"
-            fam["human_contacts"] += r["human_contact"]
-            fam["fridge_visits"] += r["fridge_visit"]
-            fam["door_contacts"] += r["door_contact"]
+        prior_seconds, errors = _restore(done, per, skips)
         log(f"[sim] resume: {len(done)} of {hi - lo} tasks already done, {len(writer.episodes)} episodes kept")
     finished = {r["task_id"] for r in done}
     t0 = time.perf_counter()
@@ -738,33 +770,31 @@ def collect(
         t_task = time.perf_counter()
         if planner is not None:
             _apply_plan(planner, task, twin, log)
-        stage = "build"
-        try:
-            env = SimEnv(twin, task, res=res, cameras=cameras, overview=save_preview and i == 0, base=base, arm=arm)
-            stage = "rollout"
-            try:
-                if env.people_note:
-                    log(f"[sim] {task['task_id']}: {env.people_note}")
-                ep = run_episode(env, policy, task, preview=preview if i == 0 else None, exec_noise=exec_noise)
-            finally:
-                env.close()  # idempotent; frees both GL renderers when the policy or the episode raises
-        except VLANotConfigured:
-            raise
-        except Exception as e:  # noqa: BLE001 - one bad geometry must cost this task, not the run; nothing is written for it
-            if (
-                isinstance(e, OSError) and policy_name == "vla"
-            ):  # the policy server did not answer: not this task's fault
-                raise
+        ep, skip = _rollout(
+            twin,
+            task,
+            policy,
+            policy_name,
+            preview=preview if i == 0 else None,
+            overview=save_preview and i == 0,
+            res=res,
+            cameras=cameras,
+            base=base,
+            arm=arm,
+            exec_noise=exec_noise,
+            log=log,
+        )
+        if skip is not None:
             errors += 1
-            skips.append({"stage": stage, "task_id": task["task_id"], "family": task["family"], "reason": one_line(e)})
-            log(f"[sim] {task['task_id']}: SKIP at {stage}: {skips[-1]['reason']}")
+            skips.append(skip)
+            log(f"[sim] {task['task_id']}: SKIP at {skip['stage']}: {skip['reason']}")
             journal.append(
                 {
                     "task_id": task["task_id"],
                     "outcome": "skip",
                     "family": task["family"],
-                    "stage": stage,
-                    "reason": skips[-1]["reason"],
+                    "stage": skip["stage"],
+                    "reason": skip["reason"],
                     "seconds": round(time.perf_counter() - t_task, 3),
                 }
             )

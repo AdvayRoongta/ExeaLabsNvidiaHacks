@@ -55,6 +55,44 @@ def _family_summary(rows: list[dict]) -> dict:
     }
 
 
+def _run_trial(twin: dict, task: dict, policy, cfg: dict, row: dict, first: bool, log) -> Exception | None:
+    """Run one frozen trial and fill in `row` (outcome, safety, timing, or the error). Returns the error to re-raise
+    after the row is written: an OSError on the first trial means the policy server is down, not a bad trial."""
+    t0, abort = time.perf_counter(), None
+    try:
+        with SimEnv(twin, task, res=cfg["resolution"], base=cfg["base"], arm=cfg.get("arm", "procedural")) as env:
+            ep = run_episode(env, policy, task)
+        safety = ep["safety"]
+        outcome = dict(
+            physics_success=bool(ep["success"]),
+            success=bool(ep["success"] and not safety["human_contact"]),
+            seconds=len(ep["states"]) / FPS,
+            safety=safety,
+            ik_error=ep["ik_error"],
+            detail=ep["detail"],
+        )
+        json.dumps(outcome, allow_nan=False)
+        tag = "DROP human_contact" if safety["human_contact"] else ("OK " if outcome["success"] else "MISS")
+        arm_note = (
+            f" arm_contact={safety['arm_contact_steps']} steps {safety['arm_contact_worst']}"
+            if safety["arm_contact_steps"]
+            else ""
+        )
+        log(
+            f"[eval] {task['task_id']}: {tag} {ep['detail']} sim={outcome['seconds']:.2f}s "
+            f"min_human_d={safety['min_human_distance_m']}{arm_note}"
+        )
+    except Exception as e:
+        row["error"] = f"{type(e).__name__}: {e}"
+        if isinstance(e, OSError) and first:
+            abort = e
+        log(f"[eval] {task['task_id']}: ERROR {row['error']}")
+    else:
+        row.update(outcome)
+    row["wall_seconds"] = time.perf_counter() - t0
+    return abort
+
+
 def evaluate(
     twin: dict | None = None,
     families: list[str] | None = None,
@@ -120,40 +158,7 @@ def evaluate(
                 "detail": None,
                 "error": None,
             }
-            t0, abort = time.perf_counter(), None
-            try:
-                with SimEnv(
-                    twin, task, res=cfg["resolution"], base=cfg["base"], arm=cfg.get("arm", "procedural")
-                ) as env:
-                    ep = run_episode(env, policy, task)
-                safety = ep["safety"]
-                outcome = dict(
-                    physics_success=bool(ep["success"]),
-                    success=bool(ep["success"] and not safety["human_contact"]),
-                    seconds=len(ep["states"]) / FPS,
-                    safety=safety,
-                    ik_error=ep["ik_error"],
-                    detail=ep["detail"],
-                )
-                json.dumps(outcome, allow_nan=False)
-                tag = "DROP human_contact" if safety["human_contact"] else ("OK " if outcome["success"] else "MISS")
-                arm_note = (
-                    f" arm_contact={safety['arm_contact_steps']} steps {safety['arm_contact_worst']}"
-                    if safety["arm_contact_steps"]
-                    else ""
-                )
-                log(
-                    f"[eval] {task['task_id']}: {tag} {ep['detail']} sim={outcome['seconds']:.2f}s "
-                    f"min_human_d={safety['min_human_distance_m']}{arm_note}"
-                )
-            except Exception as e:
-                row["error"] = f"{type(e).__name__}: {e}"
-                if isinstance(e, OSError) and not rows:
-                    abort = e
-                log(f"[eval] {task['task_id']}: ERROR {row['error']}")
-            else:
-                row.update(outcome)
-            row["wall_seconds"] = time.perf_counter() - t0
+            abort = _run_trial(twin, task, policy, cfg, row, first=not rows, log=log)
             stream.write(json.dumps(row, allow_nan=False) + "\n")
             stream.flush()
             rows.append(row)

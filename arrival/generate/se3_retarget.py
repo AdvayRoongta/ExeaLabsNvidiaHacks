@@ -294,6 +294,98 @@ class Unreachable(ValueError):
     """A transformed pose cannot be reached within the position or orientation tolerance."""
 
 
+def _retarget_attempt(twin: dict, source: dict, i: int, offset, seed: int, res: int, writer) -> dict:
+    """Attempt i: start the source task with the object moved by (dx, dy) and turned by yaw, replay the source
+    retargeted to it, and write the episode when it passes the physics check with no human contact. Returns the
+    attempt's row; `outcome` is success, drop_unreachable or drop_physics_fail."""
+    dx, dy, yaw = offset
+    task = dict(
+        source["task"],
+        task_id=f"se3_{i:06d}",
+        seed=seed * 1000 + i,
+        start=[source["task"]["start"][0] + dx, source["task"]["start"][1] + dy, source["task"]["start"][2]],
+    )
+    row = {"attempt": i, "source_id": source["source_id"], "offset": [float(dx), float(dy), float(yaw)]}
+    policy = RetargetPolicy(source)
+    try:
+        with SimEnv(twin, task, res=res) as env:
+            # Set only the initial object orientation; all subsequent motion is physics, never teleporting.
+            adr = int(env.model.joint(task["object_id"]).qposadr[0])
+            source_rotation = rigid(source["object_frame"])[:3, :3]
+            c, s = np.cos(yaw), np.sin(yaw)
+            r = np.array([[c, -s, 0], [s, c, 0], [0, 0, 1]]) @ source_rotation
+            mujoco.mju_mat2Quat(env.data.qpos[adr + 3 : adr + 7], r.flatten())
+            mujoco.mj_forward(env.model, env.data)
+            episode = run_episode(env, policy, task)
+    except Unreachable as error:
+        row.update(outcome="drop_unreachable", reason=str(error))
+    else:
+        row.update(
+            ik_error_m=policy.ik_error,
+            rotation_error_rad=policy.rotation_error,
+            object_frame=policy.anchors["object"],
+            sink_frame=policy.anchors["sink"],
+            detail=episode["detail"],
+            human_contact=episode["safety"]["human_contact"],
+        )
+        if episode["success"] and not episode["safety"]["human_contact"]:
+            k = writer.add_episode(episode, task)
+            writer.episodes[k].update(
+                arrival_generator=GENERATOR,
+                arrival_source_id=source["source_id"],
+                arrival_source_seed=source["source_seed"],
+                arrival_retarget_frames=policy.anchors,
+            )
+            row["outcome"] = "success"
+        else:
+            row["outcome"] = "drop_physics_fail"
+        del episode
+    return row
+
+
+def _report(twin: dict, pool: list[dict], one: bool, rows: list[dict], offsets, elapsed: float, successes: int) -> dict:
+    """The run report: per-source and total attempts, successes and drop reasons, speed, the sampled offset range,
+    every attempt's row, and the room and family fields `arrival cost` reads to compare with teleop."""
+    ids, seeds = [s["source_id"] for s in pool], [s["source_seed"] for s in pool]
+    return {
+        "generator": GENERATOR,
+        "source_id": ids[0] if one else ids,
+        "attempts": len(rows),
+        "source_seed": seeds[0] if one else seeds,
+        "source_generator": pool[0]["source_generator"] if one else sorted({s["source_generator"] for s in pool}),
+        "per_source": [
+            {
+                "source_id": s["source_id"],
+                "object": s["object_spec"]["catalog_id"],
+                "attempts": sum(r["source_id"] == s["source_id"] for r in rows),
+                "successes": sum(r["source_id"] == s["source_id"] and r["outcome"] == "success" for r in rows),
+            }
+            for s in pool
+        ],
+        "successes": successes,
+        "dropped": len(rows) - successes,
+        "seconds": elapsed,
+        "success_rate": successes / len(rows),
+        "demos_per_hour": successes * 3600 / elapsed,
+        # room_id and families let `arrival cost` set this run beside the teleop baseline (C3)
+        "room_id": twin["room_id"],
+        "families": {
+            "counter_to_sink": {
+                "attempts": len(rows),
+                "successes": successes,
+                "seconds": elapsed,
+                "human_contacts": sum(bool(r.get("human_contact")) for r in rows),
+            }
+        },
+        "timing_scope": "attempt loop: IK, physics, rendering and episode export; excludes source and final metadata",
+        "drop_reasons": {
+            name: sum(r["outcome"] == f"drop_{name}" for r in rows) for name in ("unreachable", "physics_fail")
+        },
+        "sampled_offset_range": np.ptp(offsets, axis=0).tolist(),
+        "rows": rows,
+    }
+
+
 def generate(twin, out_dir="out", *, source=None, sources=None, attempts=2, seed=0, res=64, offsets=None, log=print):
     """Record one source if absent; export successful replays at sampled (dx, dy, yaw) object offsets.
 
@@ -338,49 +430,8 @@ def generate(twin, out_dir="out", *, source=None, sources=None, attempts=2, seed
     source_ref = "meta/se3_source.json" if one else "meta/se3_sources.json"
     (writer.root / source_ref).write_text(json.dumps(pool[0] if one else pool, indent=2, allow_nan=False))
     rows, start_time = [], time.perf_counter()
-    for i, (dx, dy, yaw) in enumerate(offsets):
-        source = pool[i % len(pool)]
-        task = dict(
-            source["task"],
-            task_id=f"se3_{i:06d}",
-            seed=seed * 1000 + i,
-            start=[source["task"]["start"][0] + dx, source["task"]["start"][1] + dy, source["task"]["start"][2]],
-        )
-        row = {"attempt": i, "source_id": source["source_id"], "offset": [float(dx), float(dy), float(yaw)]}
-        policy = RetargetPolicy(source)
-        try:
-            with SimEnv(twin, task, res=res) as env:
-                # Set only the initial object orientation; all subsequent motion is physics, never teleporting.
-                adr = int(env.model.joint(task["object_id"]).qposadr[0])
-                source_rotation = rigid(source["object_frame"])[:3, :3]
-                c, s = np.cos(yaw), np.sin(yaw)
-                r = np.array([[c, -s, 0], [s, c, 0], [0, 0, 1]]) @ source_rotation
-                mujoco.mju_mat2Quat(env.data.qpos[adr + 3 : adr + 7], r.flatten())
-                mujoco.mj_forward(env.model, env.data)
-                episode = run_episode(env, policy, task)
-        except Unreachable as error:
-            row.update(outcome="drop_unreachable", reason=str(error))
-        else:
-            row.update(
-                ik_error_m=policy.ik_error,
-                rotation_error_rad=policy.rotation_error,
-                object_frame=policy.anchors["object"],
-                sink_frame=policy.anchors["sink"],
-                detail=episode["detail"],
-                human_contact=episode["safety"]["human_contact"],
-            )
-            if episode["success"] and not episode["safety"]["human_contact"]:
-                k = writer.add_episode(episode, task)
-                writer.episodes[k].update(
-                    arrival_generator=GENERATOR,
-                    arrival_source_id=source["source_id"],
-                    arrival_source_seed=source["source_seed"],
-                    arrival_retarget_frames=policy.anchors,
-                )
-                row["outcome"] = "success"
-            else:
-                row["outcome"] = "drop_physics_fail"
-            del episode
+    for i, offset in enumerate(offsets):
+        row = _retarget_attempt(twin, pool[i % len(pool)], i, offset, seed, res, writer)
         rows.append(row)
         log(f"[se3_retarget] attempt {i}: {row['outcome']}")
     elapsed = time.perf_counter() - start_time
@@ -397,43 +448,7 @@ def generate(twin, out_dir="out", *, source=None, sources=None, attempts=2, seed
             "retarget": "executed eef SE(3) segments with minimum-jerk bridges; native Arrival, not upstream MimicGen",
         },
     )
-    report = {
-        "generator": GENERATOR,
-        "source_id": ids[0] if one else ids,
-        "attempts": len(rows),
-        "source_seed": seeds[0] if one else seeds,
-        "source_generator": pool[0]["source_generator"] if one else sorted({s["source_generator"] for s in pool}),
-        "per_source": [
-            {
-                "source_id": s["source_id"],
-                "object": s["object_spec"]["catalog_id"],
-                "attempts": sum(r["source_id"] == s["source_id"] for r in rows),
-                "successes": sum(r["source_id"] == s["source_id"] and r["outcome"] == "success" for r in rows),
-            }
-            for s in pool
-        ],
-        "successes": successes,
-        "dropped": len(rows) - successes,
-        "seconds": elapsed,
-        "success_rate": successes / len(rows),
-        "demos_per_hour": successes * 3600 / elapsed,
-        # room_id and families let `arrival cost` set this run beside the teleop baseline (C3)
-        "room_id": twin["room_id"],
-        "families": {
-            "counter_to_sink": {
-                "attempts": len(rows),
-                "successes": successes,
-                "seconds": elapsed,
-                "human_contacts": sum(bool(r.get("human_contact")) for r in rows),
-            }
-        },
-        "timing_scope": "attempt loop: IK, physics, rendering and episode export; excludes source and final metadata",
-        "drop_reasons": {
-            name: sum(r["outcome"] == f"drop_{name}" for r in rows) for name in ("unreachable", "physics_fail")
-        },
-        "sampled_offset_range": np.ptp(offsets, axis=0).tolist(),
-        "rows": rows,
-    }
+    report = _report(twin, pool, one, rows, offsets, elapsed, successes)
     rp = out_dir / "reports" / f"{twin['room_id']}_se3_retarget.json"
     rp.parent.mkdir(parents=True, exist_ok=True)
     rp.write_text(json.dumps(report, indent=2, allow_nan=False))
