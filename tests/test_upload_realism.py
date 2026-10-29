@@ -10,7 +10,7 @@ import pytest
 from PIL import Image
 
 from arrival.jobs.queue import read_job, write_status
-from arrival.jobs.realism import measure
+from arrival.eval.realism import measure
 from arrival.jobs.worker import load_upload, run_once
 from arrival.scan import rgbd, roomplan
 from arrival.web.app import make_server
@@ -208,7 +208,7 @@ def test_worker_compares_before_adding_synthetic_objects(tmp_path, monkeypatch):
         seen.append(json.loads(json.dumps(twin)))
         return {"state": "not_measured", "metrics": None, "consumed": False, "preview": False}
 
-    monkeypatch.setattr("arrival.jobs.realism.measure", compare)
+    monkeypatch.setattr("arrival.eval.realism.measure", compare)
     finished = run_once(out, episodes=1, families=["open_drawer"], people=0, res=32, log=lambda *_: None)
     assert finished["status"] == "done", finished
     assert seen[0]["objects"] == []
@@ -229,7 +229,7 @@ def test_comparison_failure_does_not_discard_dataset(tmp_path, monkeypatch, hero
     def fail(*args, **kwargs):
         raise RuntimeError("broken renderer")
 
-    monkeypatch.setattr("arrival.jobs.realism.run_realism", fail)
+    monkeypatch.setattr("arrival.eval.realism.run_realism", fail)
     output = out / "jobs" / job["id"] / "realism"
     if failure == "directory":
         mkdir = Path.mkdir

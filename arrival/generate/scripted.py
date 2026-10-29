@@ -1,7 +1,10 @@
 """Scripted retarget generator. NOT physics and NOT MimicGen: seed cartesian trajectories
-translated to new start poses, with the target point recomputed from the fixtures."""
+translated to new start poses, with the target point recomputed from the fixtures. A distance oracle (`judge`)
+drops attempts whose object did not reach the target."""
 
 from __future__ import annotations
+
+import math
 
 from arrival.tasks.propose import shuffled, top_z
 
@@ -12,6 +15,7 @@ HOVER = 0.18
 GRASP = 0.02
 LIFT = 0.20
 RISE = 0.15
+TOLERANCE = 0.05  # m: how close the object must end to the target for the oracle to keep the attempt
 
 
 def is_miss(attempt_index: int) -> bool:
@@ -115,9 +119,15 @@ def build_seeds(tasks: list[dict], twin: dict) -> dict:
     return seeds
 
 
-def make_attempt(attempt_index: int, task: dict, twin: dict, seeds: dict) -> dict:
-    from arrival.generate.oracle import judge
+def judge(attempt: dict) -> bool:
+    """The oracle: True when the gripper closed and the object ended within TOLERANCE of the target (in 3D, so it
+    must be lowered onto the target, not left hovering)."""
+    frames, target = attempt["frames"], attempt["target"]
+    closed = max(f["gripper"] for f in frames) > 0.5
+    return math.dist(frames[-1]["object_position"], target) <= TOLERANCE and closed
 
+
+def make_attempt(attempt_index: int, task: dict, twin: dict, seeds: dict) -> dict:
     miss = is_miss(attempt_index)
     target = target_point(task, twin)
     seed_start, seed_frames = seeds[seed_key(task)]

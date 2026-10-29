@@ -6,10 +6,11 @@ import hashlib
 import json
 from pathlib import Path
 
+from arrival.sim.robot import FPS
+
 EVAL_SEED_BASE = 10_000
 SCHEMA_VERSION = 1
 MAX_STEPS = 400
-FPS = 20
 
 
 def canonical(value) -> str:

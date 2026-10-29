@@ -20,13 +20,12 @@ arrival/catalog/fixtures.py
 arrival/catalog/objects.py
 arrival/tasks/propose.py
 arrival/generate/scripted.py
-arrival/generate/oracle.py
 arrival/generate/mimicgen.py
 arrival/render/sim_texture.py
 arrival/render/splat.py
 arrival/export/lerobot.py
 arrival/export/validate.py
-arrival/eval/report.py
+arrival/eval/cost.py
 arrival/models/token_factory.py
 arrival/jobs/queue.py
 arrival/web/app.py

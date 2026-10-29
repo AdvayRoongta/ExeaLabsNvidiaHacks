@@ -1,4 +1,5 @@
-"""Time and cost report computed from local runs: python -m arrival.eval.cost [--out out].
+"""Time and cost reports. `build_report` / `write_report` write the per-run report (out/reports/<room>.json);
+the rest is the cross-run report: python -m arrival.eval.cost [--out out].
 
 Reads out/reports/*.json (demo and sim reports), out/eval/*/report.json, legacy out/eval/*.json, out/jobs/*/status.json and the per-job usage ledger
 out/usage/jobs.jsonl (the worker's metering: wall seconds, episodes, frames, bytes; it outlives `arrival gc`, so a deleted
@@ -21,6 +22,42 @@ import yaml
 PRODUCT_KEYS = {"serverless_jobs": "gpu_hour", "endpoint": "cpu_hour", "object_storage": "object_storage_gb_month",
                 "token_factory": "token_factory_per_mtoken"}
 BASELINE_FIELDS = ("task", "room", "n_success", "operator_seconds_total", "setup_assumptions", "cost_basis_usd")
+
+
+def build_report(room_id: str, attempts: int, successes: int, seconds: float, families: list[str],
+                 generator: str = "scripted_retarget", physically_valid: bool = False) -> dict:
+    """The speed and cost report one `demo` or `sim` run writes to out/reports/<room>.json. Dollars are unmeasured
+    except the local CPU run ($0)."""
+    return {
+        "room_id": room_id,
+        "generator": generator,
+        "physically_valid": physically_valid,
+        "attempts": attempts,
+        "successes": successes,
+        "dropped": attempts - successes,
+        "seconds": round(seconds, 3),
+        "demos_per_hour": round(successes / seconds * 3600, 1) if seconds > 0 else 0.0,
+        "tasks": families,
+        "dollars": {
+            "local_cpu": {"usd": 0, "measured": True},
+            "token_factory": {"usd": None, "measured": False},
+            "serverless_jobs": {"usd": None, "measured": False},
+            "cosmos": {"usd": None, "measured": False},
+            "object_storage": {"usd": None, "measured": False},
+            "endpoint": {"usd": None, "measured": False},
+        },
+        "teleop_baseline": None,
+        "usefulness": None,
+        "realism": None,
+    }
+
+
+def write_report(report: dict, reports_dir: str | Path) -> Path:
+    """Write the report to <reports_dir>/<room_id>.json and return that path."""
+    path = Path(reports_dir) / f"{report['room_id']}.json"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(report, indent=2))
+    return path
 
 
 class CostError(ValueError):

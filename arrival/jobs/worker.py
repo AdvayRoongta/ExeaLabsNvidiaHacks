@@ -495,7 +495,7 @@ def process(job_dir: Path, status: dict, out_dir: Path, episodes: int = 8, famil
         twin = compile_twin(bundle)
 
         _stage(job_dir, status, "realism", log, meter)
-        from arrival.jobs.realism import measure
+        from arrival.eval.realism import measure
 
         status["realism"] = measure(job_dir, bundle, twin, log=log)
         if status.get("frames"):

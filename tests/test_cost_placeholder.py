@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 
 from arrival.eval import cost
-from arrival.eval.report import build_report, write_report
+from arrival.eval.cost import build_report, write_report
 
 BASELINE = {"task": "all_tasks", "room": "hero_kitchen", "n_success": 10, "operator_seconds_total": 1500,
             "setup_assumptions": ["one operator"], "cost_basis_usd": 50}

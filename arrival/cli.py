@@ -24,7 +24,7 @@ def run_demo(room: str = "hero_kitchen", episodes: int = 4, videos: str = "all",
              out_dir: str | Path = "out", scans_dir: str | Path = "scans",
              from_roomplan: bool = False, seed: int = 0, log=print) -> dict:
     """scan -> twin -> tasks -> scripted retarget -> oracle -> sim_texture -> LeRobot v2 -> report."""
-    from arrival.eval.report import build_report, write_report
+    from arrival.eval.cost import build_report, write_report
     from arrival.export.lerobot import LeRobotWriter
     from arrival.provenance import run_record
     from arrival.generate.scripted import generate
@@ -614,16 +614,16 @@ def cmd_realism(a) -> int:
     except ImportError:
         print("mujoco is not installed: pip install -e '.[sim]'", file=sys.stderr)
         return EXIT_USAGE
-    from arrival.eval import realism_cli
+    from arrival.eval import realism
 
     try:
-        rep = realism_cli.run_realism(a.scan, a.out, resolve_scans(a.scans), twin_path=a.twin, max_side=a.max_side,
+        rep = realism.run_realism(a.scan, a.out, resolve_scans(a.scans), twin_path=a.twin, max_side=a.max_side,
                                       max_frames=a.max_frames, png_frames=a.png_frames,
                                       min_confidence=a.min_confidence)
-    except realism_cli.RealismError as e:
+    except realism.RealismError as e:
         print(f"realism: {e}", file=sys.stderr)
         return EXIT_INVALID
-    print(realism_cli.summary(rep))
+    print(realism.summary(rep))
     print(f"json: {rep['path']}")
     if rep["png"]:
         print(f"png:  {rep['png']}")
