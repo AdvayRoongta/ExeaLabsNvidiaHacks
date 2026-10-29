@@ -7,12 +7,12 @@ Work on this repository's laptop pass was done by the repo owner with Claude Cod
 ## Commits by author
 
 ```
-   534	redmythic1
+   539	redmythic1
    178	rishithc
    141	Aadi Tiwari
    100	aarochu
-    63	vrun-systems26
-    45	Anand Biju
+    66	vrun-systems26
+    46	Anand Biju
     29	amanx98
     20	Akshaj Shandilya
     20	Avneh Singh Bhatia
@@ -148,8 +148,8 @@ Work on this repository's laptop pass was done by the repo owner with Claude Cod
 - #384 The bowl rim grasp holds at any angle (rotated_kitchen counter_to_sink 2/6 to 6/6) (merged)
 - #385 subset --help no longer suggests a drawer bar that drops every clean pull (merged)
 - #452 A carried cup no longer squeezes out of the pads (kitchen_real_01 load_dishwasher 3/4 to 4/4) (merged)
-- #466 EVAL: loose scans in one folder no longer share its measurements.json (open)
-- #470 The plate no longer rolls out of its rim pinch on mobile carries (kitchen_real_01 plate trials 0/4 to 4/4) (open)
+- #466 EVAL: loose scans in one folder no longer share its measurements.json (merged)
+- #470 The plate no longer rolls out of its rim pinch on mobile carries (kitchen_real_01 plate trials 0/4 to 4/4) (merged)
 
 ### @aarochu (96)
 
@@ -250,6 +250,49 @@ Work on this repository's laptop pass was done by the repo owner with Claude Cod
 - #248 Reject duplicate tape measurement keys during scan intake (merged)
 - #249 Ignore malformed Tavily cache entries (merged)
 
+### @Anandb71 (40)
+
+- #152 close_door, open_oven: keep every arm joint off its stops (merged)
+- #153 [TWN-3] Draw RoomPlan doors, windows and openings in the sim as visual-only geoms (merged)
+- #154 [OPS-1] Upload worker: retry a failed job a bounded number of times (merged)
+- #201 [MAN-4, MAN-5] README: drop the stale 'Left' notes for plates, pans, dishwasher and faucet (merged)
+- #223 [OPS-1] Worker: wait before a requeued job runs again (exponential backoff) (merged)
+- #224 [PPL] Walkers yield to the arm links, not only the hand and base (merged)
+- #226 [TWN-3] RoomPlan: curved walls become straight chords instead of one straight wall (merged)
+- #357 Validate job_retry_backoff as a whole number like other integer settings (merged)
+- #358 Handle missing source_category in twin accuracy _pieces (merged)
+- #359 Reject datasets without video features in subset and merge-shards (merged)
+- #360 Catch IndexError in tree_rss for truncated /proc/[pid]/stat (merged)
+- #361 Return None from delete_job when job paths are already gone (merged)
+- #362 Require the wrist camera in encode_request, matching decode_request (merged)
+- #367 Refuse a malformed scan.json floors entry with ScanBundleError instead of retrying it (merged)
+- #368 fanout: refuse a room with no scan before any shard runs (merged)
+- #369 Offline --instructions nemotron: fall back to real wordings for every sim family (merged)
+- #370 Provenance: no code sha for an install that sits inside another project's git repo (merged)
+- #386 scan.json: refuse a wall id that is missing or shared with another wall or an object (merged)
+- #387 sim --split eval without --instructions nemotron ran the train split; refuse it (merged)
+- #388 fanout: stop the local shard processes when a shard fails its last attempt (merged)
+- #407 doctor: report a .env key as set only when config.get would use it (merged)
+- #408 cost: leave the scripted placeholder report out of the teleop comparison (merged)
+- #425 check_layout: a refused scan or unparsable twin file exits 2, not 1 like a failed layout (merged)
+- #426 config: a comment written after a .env value is no longer read as part of the value (merged)
+- #427 eval table: the total row prints contact and arm_hit under their own columns, not min_d_m and arm_mm (merged)
+- #428 render_rooms: two rooms' roomplan.json files no longer render to the same roomplan_top.png (merged)
+- #429 scan_accuracy: a room with measurements.json but no scan is an ERROR line, not a traceback (merged)
+- #430 sim on a room copied from another scans folder no longer overwrites that room's dataset (merged)
+- #431 summary: the tape column says FAIL when the twin misses a dimension or is over the tolerance (merged)
+- #432 web: a room with only the sim dataset is no longer told its data is a placeholder not to fine-tune on (merged)
+- #433 Upload: a scan named without Latin letters (Кухня.json) is no longer refused as not .json (merged)
+- #435 sim --resume: refuse progress saved in another twin instead of mixing two rooms (merged)
+- #448 merge-shards: refuse shards simulated from different scans (merged)
+- #449 cost: count the wall time of every attempt of a retried job, not only the last one (merged)
+- #450 fanout: collect the shards when --out is a symbolic link (was a ValueError after every shard had run) (merged)
+- #451 Upload: a NUL in a frames manifest path is refused as bad_path (was HTTP 500) (merged)
+- #453 scan_accuracy: a tape integer too large for float is an error line, and the next room is still measured (merged)
+- #454 Upload: an integer too large for a float is a bad scan, not a retried OverflowError (merged)
+- #455 fanout: a shard that exits 0 without meta files is recorded as fetch, not marker (merged)
+- #478 Upload: a number written as a string is a bad scan, not a retried TypeError (open)
+
 ### @vrun-systems26 (40)
 
 - #298 SIM: open_fridge push follows the fixture's yaw (side-wall fridge 0/4 -> 4/4) (merged)
@@ -336,48 +379,6 @@ Work on this repository's laptop pass was done by the repo owner with Claude Cod
 - #339 To-do: counts after merging #337 (merged)
 - #363 Prep for judging: README (license, setup, Nemotron, Token Factory, Nebius), live C4 detection, reader sign-up page (merged)
 
-### @Anandb71 (39)
-
-- #152 close_door, open_oven: keep every arm joint off its stops (merged)
-- #153 [TWN-3] Draw RoomPlan doors, windows and openings in the sim as visual-only geoms (merged)
-- #154 [OPS-1] Upload worker: retry a failed job a bounded number of times (merged)
-- #201 [MAN-4, MAN-5] README: drop the stale 'Left' notes for plates, pans, dishwasher and faucet (merged)
-- #223 [OPS-1] Worker: wait before a requeued job runs again (exponential backoff) (merged)
-- #224 [PPL] Walkers yield to the arm links, not only the hand and base (merged)
-- #226 [TWN-3] RoomPlan: curved walls become straight chords instead of one straight wall (merged)
-- #357 Validate job_retry_backoff as a whole number like other integer settings (merged)
-- #358 Handle missing source_category in twin accuracy _pieces (merged)
-- #359 Reject datasets without video features in subset and merge-shards (merged)
-- #360 Catch IndexError in tree_rss for truncated /proc/[pid]/stat (merged)
-- #361 Return None from delete_job when job paths are already gone (merged)
-- #362 Require the wrist camera in encode_request, matching decode_request (merged)
-- #367 Refuse a malformed scan.json floors entry with ScanBundleError instead of retrying it (merged)
-- #368 fanout: refuse a room with no scan before any shard runs (merged)
-- #369 Offline --instructions nemotron: fall back to real wordings for every sim family (merged)
-- #370 Provenance: no code sha for an install that sits inside another project's git repo (merged)
-- #386 scan.json: refuse a wall id that is missing or shared with another wall or an object (merged)
-- #387 sim --split eval without --instructions nemotron ran the train split; refuse it (merged)
-- #388 fanout: stop the local shard processes when a shard fails its last attempt (merged)
-- #407 doctor: report a .env key as set only when config.get would use it (merged)
-- #408 cost: leave the scripted placeholder report out of the teleop comparison (merged)
-- #425 check_layout: a refused scan or unparsable twin file exits 2, not 1 like a failed layout (merged)
-- #426 config: a comment written after a .env value is no longer read as part of the value (merged)
-- #427 eval table: the total row prints contact and arm_hit under their own columns, not min_d_m and arm_mm (merged)
-- #428 render_rooms: two rooms' roomplan.json files no longer render to the same roomplan_top.png (merged)
-- #429 scan_accuracy: a room with measurements.json but no scan is an ERROR line, not a traceback (merged)
-- #430 sim on a room copied from another scans folder no longer overwrites that room's dataset (merged)
-- #431 summary: the tape column says FAIL when the twin misses a dimension or is over the tolerance (merged)
-- #432 web: a room with only the sim dataset is no longer told its data is a placeholder not to fine-tune on (merged)
-- #433 Upload: a scan named without Latin letters (Кухня.json) is no longer refused as not .json (merged)
-- #435 sim --resume: refuse progress saved in another twin instead of mixing two rooms (merged)
-- #448 merge-shards: refuse shards simulated from different scans (merged)
-- #449 cost: count the wall time of every attempt of a retried job, not only the last one (merged)
-- #450 fanout: collect the shards when --out is a symbolic link (was a ValueError after every shard had run) (merged)
-- #451 Upload: a NUL in a frames manifest path is refused as bad_path (was HTTP 500) (merged)
-- #453 scan_accuracy: a tape integer too large for float is an error line, and the next room is still measured (merged)
-- #454 Upload: an integer too large for a float is a bad scan, not a retried OverflowError (merged)
-- #455 fanout: a shard that exits 0 without meta files is recorded as fetch, not marker (merged)
-
 ### @rishith-c (37)
 
 - #344 CAP-2: Preserve complete frame archives when ZIP creation fails (merged)
@@ -436,9 +437,9 @@ Work on this repository's laptop pass was done by the repo owner with Claude Cod
 - #396 TWN-4: check_layout supports --scans and direct RoomPlan exports, and missing rooms hint existing scans (merged)
 - #447 doctor: probe MuJoCo off-screen rendering context before sim and eval runs (merged)
 - #472 feat(sim): add left, right and back enclosure walls to procedural drawers (open)
-- #473 feat(cost): calculate teleop USD multiple, support top-level report.json and default out usage .json (open)
-- #475 [MAN-1] Close demo video and lighting renderers to prevent black video on Windows (Fixes #72) (open)
-- #477 [POL] Dynamic Nemotron instruction and prompt style variation (Issue #341) (open)
+- #473 feat(cost): calculate teleop USD multiple, support top-level report.json and default out usage .json (merged)
+- #475 [MAN-1] Close demo video and lighting renderers to prevent black video on Windows (Fixes #72) (merged)
+- #477 [POL] Dynamic Nemotron instruction and prompt style variation (Issue #341) (merged)
 
 ### @AKSHAJ-SHELL (14)
 
@@ -477,8 +478,8 @@ Work on this repository's laptop pass was done by the repo owner with Claude Cod
 - #123 Bump actions/checkout from 4 to 7 (closed)
 - #124 build(deps): bump actions/upload-artifact from 4 to 7 (merged)
 - #125 Bump ruff from 0.11.13 to 0.17.1 (merged)
-- #471 Bump actions/setup-python from 6 to 7 (open)
-- #474 Bump ruff from 0.17.1 to 0.17.2 (open)
+- #471 Bump actions/setup-python from 6 to 7 (merged)
+- #474 Bump ruff from 0.17.1 to 0.17.2 (merged)
 
 ### @IshaanM05 (6)
 
@@ -504,7 +505,7 @@ Work on this repository's laptop pass was done by the repo owner with Claude Cod
 
 ### @julieyixuanye-vm (1)
 
-- #476 docs: align architecture with implementation and formalize TODOs (open)
+- #476 docs: align architecture with implementation and formalize TODOs (merged)
 
 ### @wwpatel (1)
 
