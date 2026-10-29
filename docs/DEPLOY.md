@@ -22,5 +22,5 @@ Both containers read the same `ARRIVAL_RETENTION_HOURS` setting, so the page sta
 
 ## Not done
 
-- A pre-seeded real room: `scans/` holds only the authored `hero_kitchen`, because no real kitchen has been scanned (P2). The page shows the hero kitchen until one is added.
+- A pre-seeded real room: `scans/` holds only the authored `hero_kitchen`. The one real kitchen scanned so far (P1) is the test fixture `tests/fixtures/roomplan/kitchen_real_01.json`, with no tape measurements (P2). The page shows the hero kitchen until one is added.
 - TLS itself, the domain and a browser smoke test (Playwright). These need the host.
