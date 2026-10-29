@@ -124,7 +124,13 @@ def write_video(path: Path, frames: np.ndarray, fps: int, macro_block_size: int 
             w.append_data(f)
 
 
-def _stats(x: np.ndarray) -> dict:
+def read_jsonl(path: Path) -> list[dict]:
+    """The rows of a JSON Lines meta file (episodes.jsonl, tasks.jsonl, episodes_stats.jsonl); blank lines skipped."""
+    return [json.loads(line) for line in Path(path).read_text().splitlines() if line.strip()]
+
+
+def feature_stats(x: np.ndarray) -> dict:
+    """Per-column min, max, mean, std and row count of one feature, as LeRobot's episodes_stats.jsonl stores them."""
     x = x.astype(np.float64).reshape(len(x), -1)
     return {"min": x.min(0).tolist(), "max": x.max(0).tolist(), "mean": x.mean(0).tolist(),
             "std": x.std(0).tolist(), "count": [len(x)]}
@@ -305,7 +311,7 @@ class LeRobotWriter:
                 self.previews += 1
 
         self.ep_stats.append({"episode_index": ep, "stats": {
-            k: _stats(v.astype(np.float64) if v.dtype == bool else v) for k, v in cols.items()}})
+            k: feature_stats(v.astype(np.float64) if v.dtype == bool else v) for k, v in cols.items()}})
         self._sidecar.write(json.dumps({"episode_index": ep, **(sidecar or {})}) + "\n")
         row = {"episode_index": ep, "tasks": [instruction], "length": n, **(extra or {})}
         self.episodes.append(row)

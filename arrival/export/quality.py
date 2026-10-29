@@ -29,7 +29,7 @@ import numpy as np
 import pyarrow as pa
 import pyarrow.parquet as pq
 
-from arrival.export.lerobot import _stats, dataset_stats, list_column
+from arrival.export.lerobot import dataset_stats, feature_stats, list_column, read_jsonl
 
 LIMIT_FRAC = 0.03       # fraction of a joint's range counted as "at the limit"
 LIMIT_STEPS = 40        # consecutive steps at the limit before it is flagged (2 s at 20 fps)
@@ -55,10 +55,6 @@ THRESHOLDS = {"limit_frac": LIMIT_FRAC, "limit_steps": LIMIT_STEPS, "stuck_gap_r
 
 class QualityError(ValueError):
     """The folder cannot be checked at all (not a dataset), or a drop would leave nothing."""
-
-
-def _jsonl(path: Path) -> list[dict]:
-    return [json.loads(line) for line in path.read_text().splitlines() if line.strip()]
 
 
 def longest_run(mask: np.ndarray) -> int:
@@ -142,7 +138,7 @@ def _load(root: Path) -> tuple[dict, list[dict]]:
     if not (root.is_dir() and (meta / "info.json").is_file() and (meta / "episodes.jsonl").is_file()):
         raise QualityError(f"{root} is not a LeRobot dataset folder (needs meta/info.json and meta/episodes.jsonl)")
     try:
-        info, episodes = json.loads((meta / "info.json").read_text()), _jsonl(meta / "episodes.jsonl")
+        info, episodes = json.loads((meta / "info.json").read_text()), read_jsonl(meta / "episodes.jsonl")
     except ValueError as e:
         raise QualityError(f"{root}: meta/info.json or meta/episodes.jsonl is not valid JSON ({e})") from e
     if not isinstance(info, dict) or not all(isinstance(e, dict) and "episode_index" in e for e in episodes):
@@ -230,7 +226,7 @@ def drop_flagged(root: str | Path, out: str | Path, report: dict | None = None, 
     data_tpl, video_tpl = info["data_path"], info.get("video_path") or ""
     video_keys = [k for k, v in info.get("features", {}).items() if v.get("dtype") == "video"]
     shutil.copytree(root / "meta", out / "meta")
-    old_stats = {r["episode_index"]: r for r in _jsonl(root / "meta" / "episodes_stats.jsonl")}
+    old_stats = {r["episode_index"]: r for r in read_jsonl(root / "meta" / "episodes_stats.jsonl")}
     new_eps, new_stats, cursor, mapping = [], [], 0, {}
     for j, e in enumerate(kept):
         i = e["episode_index"]
@@ -242,7 +238,7 @@ def drop_flagged(root: str | Path, out: str | Path, report: dict | None = None, 
         stats = dict(old_stats.get(i, {}).get("stats", {}))
         for col in list(stats):
             if col in t.column_names:
-                stats[col] = _stats(np.array(t.column(col).to_pylist(), dtype=np.float64))
+                stats[col] = feature_stats(np.array(t.column(col).to_pylist(), dtype=np.float64))
         new_stats.append({"episode_index": j, "stats": stats})
         new_eps.append({**e, "episode_index": j, "length": t.num_rows})
         if video_tpl:
@@ -260,7 +256,7 @@ def drop_flagged(root: str | Path, out: str | Path, report: dict | None = None, 
         (meta / "stats.json").write_text(json.dumps(dataset_stats(out, new_stats), indent=2))
     side = meta / "arrival_cartesian.jsonl"
     if side.is_file():
-        rows = [{**r, "episode_index": mapping[r["episode_index"]]} for r in _jsonl(side)
+        rows = [{**r, "episode_index": mapping[r["episode_index"]]} for r in read_jsonl(side)
                 if r.get("episode_index") in mapping]
         side.write_text("".join(json.dumps(r) + "\n" for r in rows))
     n = len(kept)

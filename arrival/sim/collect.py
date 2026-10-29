@@ -18,6 +18,7 @@ from arrival.sim.export import STATE_DIM
 from arrival.sim.preflight import DRAWER_OPEN_PUT, base_pose, corners, drive_spot, front, mobile_drive, place_point, rack_spot
 from arrival.sim.scene import BOWL_WALL, DOOR_FLAT, PLATE_FLOOR, PLATE_RIM, RACK_OUT, build_mjcf
 from arrival.twin.compile import is_counter_host, to_local
+from arrival.provenance import run_record
 
 FPS = 20
 SUBSTEPS = 25  # 0.002 s physics -> 20 Hz control
@@ -32,9 +33,6 @@ SKIP_REASONS_KEPT = 50  # reasons kept in the report and the dataset info
 WIPE_MIN = 0.4  # metres the sponge must travel pressed to the counter for wipe_counter to count
 FLAP_OPEN = 1.0  # rad; open_oven / open_dishwasher count a bottom-hinged door past this as open
 FAUCET_ON = 0.6  # rad; the lever lifted past this is water on (range is 0 to 1.2)
-
-
-_front, _corners = front, corners  # the stand-rule helpers live in preflight; the old names stay importable
 
 
 BASE_MODES = ("fixed", "mobile")
@@ -131,14 +129,14 @@ class SimEnv:
         run on it, narrowed by runs on the side walls. Returns (floor, base_xy, front_y, note) in that frame.
         A room with no usable strip gets the whole floor and front_y None (no counter stop), and `note` says so."""
         M = frame(anchor.get("yaw", 0.0))
-        n = _front(anchor)[:2]
+        n = front(anchor)[:2]
         pts = np.array([M @ np.array(p, dtype=float) for w in self.twin["walls"] for p in (w["start"], w["end"])])
         bx, by = M @ np.array(base[:2])
         x0, x1, y1 = float(pts[:, 0].min()) + 0.4, float(pts[:, 0].max()) - 0.4, float(pts[:, 1].max()) - 0.3
         deep, sides = -np.inf, []
         for f in self.twin["fixtures"]:
-            c = np.array([M @ np.array(p) for p in _corners(f)])
-            d = float(np.dot(_front(f)[:2], n))
+            c = np.array([M @ np.array(p) for p in corners(f)])
+            d = float(np.dot(front(f)[:2], n))
             if d > 0.9:
                 deep = max(deep, float(c[:, 1].max()))
             elif d < -0.9:
@@ -224,8 +222,8 @@ class SimEnv:
 
     def pull_axis(self, task: dict) -> np.ndarray:
         if task["family"] == "turn_on_faucet":  # the lever is pushed from in front of the counter run the sink is set in
-            return _front(self.anchor)
-        return _front(self.fx[task["fixture"]])
+            return front(self.anchor)
+        return front(self.fx[task["fixture"]])
 
     def run_yaw(self) -> float:
         """Yaw of the run the task works at: 0 on the hero kitchen's north wall, so grasp yaws written for it
@@ -238,11 +236,11 @@ class SimEnv:
     def drawer_place_point(self, task: dict) -> np.ndarray:
         """Where to set an object down on the pulled-out part of the open drawer's tray."""
         c = self.fx[task["fixture"]]
-        n = _front(c)
+        n = front(c)
         tray = self.data.geom(f'{task["fixture"]}_drawer0_tray')
         half = self.model.geom(f'{task["fixture"]}_drawer0_tray').size
-        front = np.array(c["position"][:2]) + n[:2] * (c["size"][1] / 2 - 0.02)  # a point on the carcass face
-        along = float(np.dot(tray.xpos[:2] - front, n[:2]))  # tray centre, measured out from that face
+        face = np.array(c["position"][:2]) + n[:2] * (c["size"][1] / 2 - 0.02)  # a point on the carcass face
+        along = float(np.dot(tray.xpos[:2] - face, n[:2]))  # tray centre, measured out from that face
         far = along + float(half[1])  # how far the tray reaches past the face
         mid = 0.02 + (far - 0.02) / 2  # middle of the exposed part of the tray
         xy = tray.xpos[:2] + n[:2] * (mid - along)  # keep the drawer's own x; the counter centre is not the drawer
@@ -503,8 +501,6 @@ def collect(twin: dict, families: list[str], episodes: int, out_dir: str | Path 
         finish_task(t)
     policy = ScriptedExpert() if policy_name == "scripted" else VLAClient()
     planner = VLMPlanner(log=log, cache_path=cache_path) if planner_name == "vlm" else None
-    from arrival.export.provenance import run_record
-
     prov = run_record(twin, seed=seed, generator="mujoco_scripted_ik", policy=policy_name, planner=planner_name,
                       episodes=episodes, families=list(families), people=people, res=res, split=split,
                       exec_noise=exec_noise, cameras=list(cameras))

@@ -7,7 +7,7 @@ import pytest
 
 mujoco = pytest.importorskip("mujoco")
 
-from arrival.export.provenance import canonical_sha256  # noqa: E402
+from arrival.provenance import canonical_sha256  # noqa: E402
 from arrival.export.validate import validate  # noqa: E402
 from arrival.generate.se3_retarget import (  # noqa: E402
     BRIDGE_STEPS, GENERATOR, RetargetPolicy, generate, interpolate, inverse, main, pose, record_source,

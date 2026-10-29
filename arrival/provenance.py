@@ -23,7 +23,7 @@ from functools import lru_cache
 from pathlib import Path
 
 SCHEMA_VERSION = 1
-ROOT = Path(__file__).resolve().parents[2]
+ROOT = Path(__file__).resolve().parents[1]
 OBJECT_PROVENANCE = ("detected", "authored", "default_synthetic")
 GIT_TIMEOUT_S = 5
 

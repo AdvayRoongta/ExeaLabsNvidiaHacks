@@ -18,6 +18,7 @@ import numpy as np
 import pyarrow as pa
 import pyarrow.parquet as pq
 
+from arrival.export.lerobot import read_jsonl
 from arrival.export.validate import meta_shape_error
 from arrival.sim.robot import BASE_SPEED, BASE_TURN
 
@@ -47,10 +48,6 @@ class _Findings:
 
     def warn(self, code: str, msg: str) -> None:
         self.warnings.append({"code": code, "msg": msg})
-
-
-def _jsonl(path: Path) -> list[dict]:
-    return [json.loads(line) for line in path.read_text().splitlines() if line.strip()]
 
 
 def _arrow_type(feat: dict) -> pa.DataType | None:
@@ -95,7 +92,7 @@ def check_loader(root: str | Path) -> dict:
         return out
     for m in need:
         try:
-            rows = _jsonl(meta / m) if m.endswith(".jsonl") else [json.loads((meta / m).read_text())]
+            rows = read_jsonl(meta / m) if m.endswith(".jsonl") else [json.loads((meta / m).read_text())]
         except ValueError as e:
             f.err("meta_unreadable", f"meta/{m} is not valid JSON ({e})")
             continue
@@ -106,9 +103,9 @@ def check_loader(root: str | Path) -> dict:
     info = json.loads((meta / "info.json").read_text())
     modality = json.loads((meta / "modality.json").read_text())
     emb = json.loads((meta / "embodiment.json").read_text())
-    tasks = _jsonl(meta / "tasks.jsonl")
-    episodes = _jsonl(meta / "episodes.jsonl")
-    ep_stats = _jsonl(meta / "episodes_stats.jsonl")
+    tasks = read_jsonl(meta / "tasks.jsonl")
+    episodes = read_jsonl(meta / "episodes.jsonl")
+    ep_stats = read_jsonl(meta / "episodes_stats.jsonl")
     stats = json.loads((meta / "stats.json").read_text())
     features = info.get("features", {})
 

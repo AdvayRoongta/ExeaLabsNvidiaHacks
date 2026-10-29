@@ -11,6 +11,7 @@ from pathlib import Path
 
 from arrival.config import get as get_setting
 from arrival.config import redact
+from arrival.scan.bundle import resolve_scans
 
 EXIT_OK, EXIT_INVALID, EXIT_USAGE = 0, 1, 2
 # arrival.sim.tasks.SIM_FAMILIES, spelled out because importing it loads MuJoCo
@@ -19,27 +20,18 @@ FAMILY_NAMES = ("counter_to_sink, counter_to_counter, open_drawer, open_door, cl
                 "unload_dishwasher")
 
 
-def resolve_scans(scans_dir: str | Path = "scans") -> Path:
-    """A relative --scans that does not exist in the cwd falls back to <repo root>/<scans_dir>."""
-    p = Path(scans_dir)
-    if p.is_absolute() or p.exists():
-        return p
-    repo = Path(__file__).resolve().parents[1] / p
-    return repo if repo.exists() else p
-
-
 def run_demo(room: str = "hero_kitchen", episodes: int = 4, videos: str = "all",
              out_dir: str | Path = "out", scans_dir: str | Path = "scans",
              from_roomplan: bool = False, seed: int = 0, log=print) -> dict:
     """scan -> twin -> tasks -> scripted retarget -> oracle -> sim_texture -> LeRobot v2 -> report."""
     from arrival.eval.report import build_report, write_report
     from arrival.export.lerobot import LeRobotWriter
-    from arrival.export.provenance import run_record
+    from arrival.provenance import run_record
     from arrival.generate.scripted import generate
     from arrival.render.sim_texture import room_center_x
     from arrival.scan import bundle as scan_bundle
     from arrival.tasks.propose import propose, write_tasks
-    from arrival.twin.compile import compile_twin, write_twin
+    from arrival.twin.compile import compile_twin, roomplan_twin, write_twin
 
     out_dir, scans_dir = Path(out_dir), resolve_scans(scans_dir)
     if not (scans_dir / room).is_dir():
@@ -165,20 +157,13 @@ def cmd_doctor(a) -> int:
     return EXIT_INVALID if doctor.exit_code(checks) else EXIT_OK
 
 
-def roomplan_twin(rp_path: Path, room: str, seed: int = 0) -> dict:
-    """The twin of a RoomPlan export (arrival.twin.compile.roomplan_twin, shared with teleop and retarget)."""
-    from arrival.twin.compile import roomplan_twin as build
-
-    return build(rp_path, room, seed)
-
-
 def _load_twin(room: str, out: str | Path, scans: str | Path) -> dict:
     """The compiled twin under <out>/twins, unless scans/<room>/scan.json (or roomplan.json) was saved after it
     was written; then the scan is compiled again. A room with only a roomplan.json, as a phone capture lands, is
     built as `demo --from-roomplan` builds it (objects placed with seed 0). Raises FileNotFoundError when there
     is no twin and no scan."""
     from arrival.scan import bundle as scan_bundle
-    from arrival.twin.compile import compile_twin
+    from arrival.twin.compile import compile_twin, roomplan_twin
 
     room_dir = resolve_scans(scans) / room
     scan_path = room_dir / "scan.json"

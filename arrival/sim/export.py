@@ -10,7 +10,7 @@ import numpy as np
 import pyarrow as pa
 import pyarrow.parquet as pq
 
-from arrival.export.lerobot import (CHUNKS_SIZE, MODALITY, SCHEMA, _stats, check_video_size, chunk_of, dataset_stats,
+from arrival.export.lerobot import (CHUNKS_SIZE, MODALITY, SCHEMA, feature_stats, check_video_size, chunk_of, dataset_stats,
                                     video_info, write_video)
 from arrival.sim import menagerie, robot
 
@@ -26,7 +26,7 @@ class SimDatasetWriter:
         """resume=True keeps what is on disk (the caller then calls `restore`) instead of wiping the folder."""
         check_video_size(res, res)  # before the rmtree below: a bad res must not wipe an existing dataset
         self.root, self.room_id, self.fps, self.res, self.cameras = Path(root), room_id, fps, res, cameras
-        self.provenance = provenance  # export.provenance.run_record: input scan hash, code sha, seeds, generators
+        self.provenance = provenance  # provenance.run_record: input scan hash, code sha, seeds, generators
         self.base = base
         self.arm = arm
         self.finger_open = menagerie.FINGER_OPEN if arm == "menagerie" else robot.FINGER_OPEN
@@ -119,7 +119,7 @@ class SimDatasetWriter:
                 "annotation.human.task_description": np.full(n, ti), "task_index": np.full(n, ti),
                 "episode_index": np.full(n, i), "index": np.arange(self.total_frames, self.total_frames + n),
                 "next.reward": reward, "next.done": done.astype(np.float64)}
-        self.stats.append({"episode_index": i, "stats": {k: _stats(v) for k, v in cols.items()}})
+        self.stats.append({"episode_index": i, "stats": {k: feature_stats(v) for k, v in cols.items()}})
         self.total_frames += n
         return i
 

@@ -7,7 +7,7 @@ import subprocess
 
 import pytest
 
-from arrival.export import provenance
+from arrival import provenance
 from arrival.scan import bundle as scan_bundle
 from arrival.scan import roomplan
 from arrival.twin.compile import compile_twin, place_default_objects, write_twin

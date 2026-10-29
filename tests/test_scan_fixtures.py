@@ -13,7 +13,7 @@ from arrival.scan.bundle import load_room  # noqa: E402
 from arrival.sim.scene import build_mjcf, drawer_x, front_stand, part_names  # noqa: E402
 from arrival.sim.preflight import BASE_CLEAR  # noqa: E402
 from arrival.sim.tasks import make_tasks  # noqa: E402
-from arrival.twin.compile import _rect_distance, compile_twin, is_counter_host, to_world  # noqa: E402
+from arrival.twin.compile import rect_distance, compile_twin, is_counter_host, to_world  # noqa: E402
 
 SCANS = "tests/fixtures/scans"
 WALLS = [{"id": "wall_n", "start": [0.0, 0.0], "end": [4.0, 0.0], "height": 2.4, "thickness": 0.02},
@@ -113,7 +113,7 @@ def test_no_drawer_or_door_task_where_the_base_cannot_stand():
         c = fx[t["fixture"]]
         along, out = front_stand(c, t["family"], twin["fixtures"])
         spot = to_world((along, c["size"][1] / 2 + out), c)
-        assert min(_rect_distance(list(spot), f) for f in twin["fixtures"]) >= BASE_CLEAR, t["task_id"]
+        assert min(rect_distance(list(spot), f) for f in twin["fixtures"]) >= BASE_CLEAR, t["task_id"]
 
 
 def test_corner_cabinet_door_stands_along_its_run_but_the_blocked_drawer_and_outside_fridge_stay_rejected():

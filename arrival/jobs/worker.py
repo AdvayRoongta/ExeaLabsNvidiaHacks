@@ -38,7 +38,10 @@ from dataclasses import asdict
 from pathlib import Path
 
 from arrival.jobs.limits import LimitError, Limits
-from arrival.jobs.queue import write_status
+from arrival.jobs.queue import read_status, write_status
+from arrival.provenance import object_counts
+from arrival.provenance import sha256_file
+from arrival.jobs.retention import gc
 
 DEFAULT_FAMILIES = ("counter_to_sink", "open_drawer", "move_on_table")  # move_on_table runs only in rooms with a table
 STAGES = ("normalize", "twin", "realism", "objects", "sim", "validate", "zip")
@@ -121,14 +124,6 @@ def _write_status(job_dir: Path, status: dict) -> dict:
     return write_status(job_dir, status)
 
 
-def _read_status(job_dir: Path) -> dict | None:
-    try:
-        st = json.loads((Path(job_dir) / "status.json").read_text(encoding="utf-8"))
-    except (OSError, ValueError):
-        return None
-    return st if isinstance(st, dict) else None
-
-
 class Meter:
     """Wall seconds per stage for one job, written into ``status["usage"]`` as the job goes."""
 
@@ -207,8 +202,6 @@ def _stage(job_dir: Path, status: dict, stage: str, log, meter: Meter | None = N
 def objects_status(twin: dict) -> dict:
     """What the job status says about the twin's objects: how many carry each provenance label and how the
     detection run went (`not_run` with a reason when it did not read a frame, or when the scan lists its objects)."""
-    from arrival.export.provenance import object_counts
-
     run = twin.get("object_detection") or {"state": "not_run", "reason": "the scan lists its objects"}
     return {"counts": object_counts(twin), "detection": run["state"], "reason": run.get("reason"),
             "reply_sources": run.get("reply_sources", {}), "rejected": len(run.get("rejected", []))}
@@ -319,7 +312,7 @@ def claim_next(jobs_root: Path, worker: str | None = None) -> tuple[Path, dict] 
         return None
     queued = []
     for d in jobs_root.iterdir():
-        st = _read_status(d)
+        st = read_status(d)
         if st is None:
             continue  # not a job, or a status.json this worker cannot read; leave it alone
         try:
@@ -334,7 +327,7 @@ def claim_next(jobs_root: Path, worker: str | None = None) -> tuple[Path, dict] 
     for _, _, job_dir in sorted(queued):
         if not _create_lock(job_dir / LOCK, worker):
             continue  # another worker owns it
-        st = _read_status(job_dir)  # re-read under the lock: it may have finished or been cancelled since the scan
+        st = read_status(job_dir)  # re-read under the lock: it may have finished or been cancelled since the scan
         if st is None or st.get("status") != "queued":
             _unlink(job_dir / LOCK)
             continue
@@ -389,7 +382,7 @@ def reap_stale(jobs_root: Path, stale_seconds: float = 120.0, log=print, now: fl
     jobs_root = Path(jobs_root)
     n = 0
     for d in sorted(jobs_root.iterdir()) if jobs_root.is_dir() else []:
-        st = _read_status(d)
+        st = read_status(d)
         if st is None or "id" not in st or st.get("status") not in ("running", "queued"):
             continue
         if st["status"] == "queued" and not (d / LOCK).exists():
@@ -404,7 +397,7 @@ def reap_stale(jobs_root: Path, stale_seconds: float = 120.0, log=print, now: fl
                 pass
             continue
         try:
-            st = _read_status(d)  # re-check under the arbiter
+            st = read_status(d)  # re-check under the arbiter
             if st is None or st.get("status") not in ("running", "queued") or not lock_is_stale(d, stale_seconds, now):
                 continue
             _unlink(d / LOCK)
@@ -438,7 +431,7 @@ def requeue_running(jobs_root: Path, log=print) -> int:
     jobs_root = Path(jobs_root)
     n = 0
     for d in sorted(jobs_root.iterdir()) if jobs_root.is_dir() else []:
-        st = _read_status(d)
+        st = read_status(d)
         if st is not None and st.get("status") == "running" and "id" in st:
             _unlink(d / LOCK)
             st.update({"status": "queued", "stage": None, "started_at": None, "worker": None})
@@ -453,12 +446,12 @@ def cancel_job(jobs_root: Path, job_id: str) -> str | None:
     now), ``"cancelling"`` for a running one (it stops at the next stage boundary, or at once when the worker runs
     jobs in a child process), and the job's status for one that already finished."""
     job_dir = Path(jobs_root) / job_id
-    st = _read_status(job_dir)
+    st = read_status(job_dir)
     if st is None:
         return None
     if st.get("status") == "queued" and _create_lock(job_dir / LOCK, "cancel"):  # claim it so no worker takes it
         try:
-            st = _read_status(job_dir) or st
+            st = read_status(job_dir) or st
             if st.get("status") == "queued":
                 st.update({"status": "cancelled", "finished_at": int(time.time())})
                 _write_status(job_dir, st)
@@ -486,7 +479,6 @@ def process(job_dir: Path, status: dict, out_dir: Path, episodes: int = 8, famil
         status["frames"].update(consumed=False, used_for=None)
     try:
         limits.check_request(episodes, people)
-        from arrival.export.provenance import sha256_file
         from arrival.export.validate import validate
         from arrival.twin.compile import compile_twin, fill_objects, write_twin
 
@@ -757,7 +749,7 @@ def run_isolated(job_dir: Path, status: dict, out_dir: Path, limits: Limits, log
         proc.kill()
         proc.wait()
         raise
-    final = _read_status(job_dir) or status
+    final = read_status(job_dir) or status
     if final.get("status") != "running" and why is None:
         return final  # the child ended the attempt itself (done, failed, cancelled or queued again), ledger included
     done = (final.get("usage") or {}).get("stage_seconds") or {}
@@ -831,8 +823,6 @@ def work(out_dir: Path, once: bool = False, poll: float = 2.0, log=print, limits
                 reap_stale(jobs, limits.stale_seconds, log=log)
                 next_reap = now + max(poll, limits.stale_seconds / 4)
             if limits.retention_hours and now >= next_gc:
-                from arrival.jobs.retention import gc
-
                 for jid in gc(out_dir, limits.retention_hours, log=log)["removed"]:
                     log(f"[work] retention: removed {jid}")
                 next_gc = now + 300

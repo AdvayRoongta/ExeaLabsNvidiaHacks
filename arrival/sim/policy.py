@@ -431,7 +431,7 @@ class ScriptedExpert(Policy):
     def _drive_and_place(self, env, task: dict, o: float, c: float) -> list[tuple]:
         """counter_to_counter on a mobile base: grasp in front of the object, tuck the object in front of the base
         and above the counter top, drive along the counter front to the target, then place as counter_to_sink does."""
-        from arrival.sim.collect import _front
+        from arrival.sim.preflight import front
 
         p = env.body_pos(task["object_id"])
         gz = p[2] + min(0.01, env.obj_half_h(task["object_id"]) * 0.2)
@@ -445,7 +445,7 @@ class ScriptedExpert(Policy):
         R = ik.down(self._grip_yaw(env, yaw))
         s = self.seg_steps
         here, there = env.base_pose(), env.drive_to
-        n = _front(env.fx[task["source"]])[:2]
+        n = front(env.fx[task["source"]])[:2]
         carry = (here[0] - 0.25 * n[0], here[1] - 0.25 * n[1], 1.1)  # just off the counter front, above its top
         lift = [((p[0], p[1], gz + 0.22), R, c, s)]
         if g is not None:  # a wide object tips in the pads as it leaves the counter: lift it in short steps

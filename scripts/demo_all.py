@@ -357,7 +357,7 @@ def main(argv: list[str] | None = None) -> int:
     print((out / "demo_summary.md").read_text())
     print(f"summary: {out / 'demo_summary.md'}\npage: {out / 'index.html'}")
     if a.serve:
-        from arrival.cli import resolve_scans
+        from arrival.scan.bundle import resolve_scans
         from arrival.web.app import serve
 
         serve(port=a.port, out_dir=out, scans_dir=resolve_scans(a.scans))

@@ -108,6 +108,15 @@ def write_status(job_dir: Path, status: dict) -> dict:
     return status
 
 
+def read_status(job_dir: Path) -> dict | None:
+    """The job's status.json as a dict, or None when it is missing, unreadable or not a JSON object."""
+    try:
+        st = json.loads((Path(job_dir) / "status.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    return st if isinstance(st, dict) else None
+
+
 def read_job(jobs_root: Path, job_id: str) -> dict | None:
     if not isinstance(job_id, str) or re.fullmatch(r"job_[0-9a-f]{32}", job_id) is None:
         return None

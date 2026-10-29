@@ -9,6 +9,7 @@ from pathlib import Path
 
 from arrival.catalog.fixtures import default_size
 from arrival.scan.bundle import MAX_COORD_M, MAX_DIM_M, ScanBundleError, is_finite_number, numbers, validate
+from arrival.provenance import sha256_file
 
 SNAP_TOL = math.radians(5.0)
 CURVE_STEP = math.radians(15.0)
@@ -151,7 +152,8 @@ def _object(o: dict, i: int) -> dict:
     }
 
 
-def _seg_dist(p: list[float], w: dict) -> float:
+def segment_distance(p: list[float], w: dict) -> float:
+    """Horizontal distance from point p to a wall's start-end segment."""
     (x0, y0), (x1, y1) = w["start"], w["end"]
     dx, dy = x1 - x0, y1 - y0
     n = dx * dx + dy * dy
@@ -169,7 +171,7 @@ def _portal(s: dict, i: int, kind: str, segments: dict[str, list[dict]]) -> dict
     chords = segments.get(parent) if parent else None
     entry = {
         "id": _ident(s, f"{kind}_{i}"),
-        "wall_id": min(chords, key=lambda w: _seg_dist(position, w))["id"] if chords else None,
+        "wall_id": min(chords, key=lambda w: segment_distance(position, w))["id"] if chords else None,
         "size": _size(s["dimensions"]),
         "position": position,
         "yaw": _yaw(m),
@@ -422,8 +424,6 @@ def to_bundle(roomplan: dict, room_id: str, story: int | None = None) -> dict:
 
 def load(path: str | Path, room_id: str, story: int | None = None) -> dict:
     """Normalize a RoomPlan JSON file. The bundle carries `input_sha256`, the sha256 of the export's bytes."""
-    from arrival.export.provenance import sha256_file
-
     with open(path, encoding="utf-8") as f:
         bundle = to_bundle(json.load(f), room_id, story)
     bundle["input_sha256"] = sha256_file(path)

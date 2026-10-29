@@ -8,7 +8,7 @@ import numpy as np
 import pytest
 
 from arrival import cli
-from arrival.export.provenance import run_record
+from arrival.provenance import run_record
 from arrival.export.validate import validate
 from arrival.jobs.shards import ShardError, merge_shards, shard_range
 from arrival.scan.bundle import load_room

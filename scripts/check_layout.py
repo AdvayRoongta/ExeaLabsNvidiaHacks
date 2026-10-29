@@ -163,7 +163,7 @@ def main(argv: list[str] | None = None) -> int:
             twin = compile_twin(roomplan.load(rp, rp.stem))
             layout = yaml.safe_load(yaml.safe_dump(layout_dict(twin), sort_keys=False))
         elif a.room:
-            from arrival.cli import resolve_scans
+            from arrival.scan.bundle import resolve_scans
             from arrival.twin.compile import layout_dict, room_twin
             scans = resolve_scans(a.scans)
             src = scans / a.room / "scan.json"
@@ -179,7 +179,7 @@ def main(argv: list[str] | None = None) -> int:
             layout = yaml.safe_load(src.read_text())
     except FileNotFoundError as e:
         if getattr(a, "room", None):
-            from arrival.cli import resolve_scans
+            from arrival.scan.bundle import resolve_scans
             from arrival.scan.bundle import rooms_hint
             scans = resolve_scans(a.scans)
             p.error(f"no scan for room {a.room!r} under {scans} ({rooms_hint(a.room, scans)}): {e}")

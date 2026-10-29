@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import math
 from pathlib import Path
+from arrival.provenance import sha256_file
 
 GEOMETRY_SOURCES = ("authored_sample", "roomplan", "four_photo_unmeasured")
 OPTIONAL_LISTS = ("doors", "windows", "openings", "floors")
@@ -142,10 +143,17 @@ def validate(bundle: dict) -> dict:
     return bundle
 
 
+def resolve_scans(scans_dir: str | Path = "scans") -> Path:
+    """A relative --scans that does not exist in the cwd falls back to <repo root>/<scans_dir>."""
+    p = Path(scans_dir)
+    if p.is_absolute() or p.exists():
+        return p
+    repo = Path(__file__).resolve().parents[2] / p
+    return repo if repo.exists() else p
+
+
 def load(path: str | Path) -> dict:
     """Read and validate scan.json. The result carries `input_sha256`, the sha256 of the file's bytes, for provenance."""
-    from arrival.export.provenance import sha256_file
-
     with open(path, encoding="utf-8") as f:
         bundle = validate(json.load(f))
     bundle["input_sha256"] = sha256_file(path)

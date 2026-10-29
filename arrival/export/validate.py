@@ -11,6 +11,7 @@ import numpy as np
 import pyarrow as pa
 import pyarrow.parquet as pq
 
+from arrival.export.lerobot import read_jsonl
 META = ("info.json", "tasks.jsonl", "episodes.jsonl", "episodes_stats.jsonl", "stats.json", "modality.json", "embodiment.json")
 ROW_KEYS = {"episodes.jsonl": ("episode_index", "length"), "tasks.jsonl": ("task_index", "task")}
 DTYPES = {
@@ -20,10 +21,6 @@ DTYPES = {
 }
 TS_TOL = 1e-4  # seconds; LeRobot's timestamp sync check uses the same tolerance
 VIDEO_SAMPLE = 3  # mp4s fully decoded (first, last, middle); the rest are existence-checked
-
-
-def _jsonl(path: Path) -> list[dict]:
-    return [json.loads(line) for line in path.read_text().splitlines() if line.strip()]
 
 
 def meta_shape_error(name: str, rows: list) -> str | None:
@@ -87,7 +84,7 @@ def validate(root: str | Path) -> list[str]:
         return [f"missing meta/{m}" for m in missing]
     for m in META:  # a run killed while writing meta leaves truncated JSON; report it instead of a traceback
         try:
-            rows = _jsonl(root / "meta" / m) if m.endswith(".jsonl") else [json.loads((root / "meta" / m).read_text())]
+            rows = read_jsonl(root / "meta" / m) if m.endswith(".jsonl") else [json.loads((root / "meta" / m).read_text())]
         except ValueError as e:
             return [f"meta/{m} is not valid JSON ({e})"]
         if err := meta_shape_error(m, rows):
@@ -112,8 +109,8 @@ def validate(root: str | Path) -> list[str]:
     if emb.get("cartesian_sidecar") and not (root / "meta" / emb["cartesian_sidecar"]).is_file():
         errors.append(f"embodiment cartesian_sidecar {emb['cartesian_sidecar']} not found in meta/")
 
-    episodes = _jsonl(root / "meta" / "episodes.jsonl")
-    tasks = _jsonl(root / "meta" / "tasks.jsonl")
+    episodes = read_jsonl(root / "meta" / "episodes.jsonl")
+    tasks = read_jsonl(root / "meta" / "tasks.jsonl")
     n = info.get("total_episodes")
     if len(episodes) != n:
         errors.append(f"episodes.jsonl has {len(episodes)} rows, info.total_episodes={n}")
@@ -124,7 +121,7 @@ def validate(root: str | Path) -> list[str]:
     if len(tasks) != info.get("total_tasks"):
         errors.append(f"tasks.jsonl has {len(tasks)} rows, info.total_tasks={info.get('total_tasks')}")
     task_ids = {t["task_index"]: t["task"] for t in tasks}
-    if len(_jsonl(root / "meta" / "episodes_stats.jsonl")) != len(episodes):
+    if len(read_jsonl(root / "meta" / "episodes_stats.jsonl")) != len(episodes):
         errors.append("episodes_stats.jsonl row count != episodes.jsonl")
 
     size = info.get("chunks_size", 1000)

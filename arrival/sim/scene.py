@@ -10,7 +10,7 @@ import random
 
 from arrival.catalog.objects import object_spec
 from arrival.scan.bundle import ScanBundleError
-from arrival.scan.roomplan import PORTALS
+from arrival.scan.roomplan import PORTALS, segment_distance
 from arrival.sim import people, robot
 from arrival.twin.compile import COUNTER_HEIGHT, is_counter_host, to_local
 
@@ -696,15 +696,6 @@ def part_names(twin: dict) -> list[dict]:
     return parts
 
 
-def _seg_dist(p, w: dict) -> float:
-    """Horizontal distance from point p to a wall's segment."""
-    (x0, y0), (x1, y1) = w["start"], w["end"]
-    dx, dy = x1 - x0, y1 - y0
-    n = dx * dx + dy * dy
-    t = 0.0 if n < 1e-12 else min(max(((p[0] - x0) * dx + (p[1] - y0) * dy) / n, 0.0), 1.0)
-    return math.hypot(p[0] - x0 - t * dx, p[1] - y0 - t * dy)
-
-
 def portal_wall(p: dict, walls: list[dict]) -> dict | None:
     """The wall a door, window or opening is drawn on: the one its `wall_id` names, else (an export without
     `parentIdentifier`, or a parent that is not one of the walls) the wall whose segment passes nearest its centre,
@@ -713,7 +704,7 @@ def portal_wall(p: dict, walls: list[dict]) -> dict | None:
         for w in walls:
             if w["id"] == p["wall_id"]:
                 return w
-    d, i = min(((_seg_dist(p["position"], w), i) for i, w in enumerate(walls)), default=(math.inf, -1))
+    d, i = min(((segment_distance(p["position"], w), i) for i, w in enumerate(walls)), default=(math.inf, -1))
     return walls[i] if d <= PORTAL_SNAP else None
 
 

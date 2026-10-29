@@ -18,7 +18,7 @@ import numpy as np
 import pyarrow.parquet as pq
 
 from arrival.export.lerobot import chunk_of
-from arrival.jobs.shards import _find_dataset, _jsonl
+from arrival.jobs.shards import find_dataset, read_jsonl_strict
 
 
 class SubsetError(ValueError):
@@ -32,12 +32,12 @@ def subset_dataset(src: str | Path, out_dir: str | Path = "out", families: list[
     if min_drawer_opening is not None and (type(min_drawer_opening) not in (int, float) or
                                            not math.isfinite(min_drawer_opening) or min_drawer_opening < 0):
         raise SubsetError("min_drawer_opening must be a finite, nonnegative distance in metres")
-    root = _find_dataset(Path(src))
+    root = find_dataset(Path(src))
     meta = root / "meta"
     info = json.loads((meta / "info.json").read_text())
     if "arrival_room_id" not in info:
         raise SubsetError(f"{root} is not a dataset written by `arrival sim` (no arrival_room_id in info.json)")
-    rows = _jsonl(meta / "episodes.jsonl")
+    rows = read_jsonl_strict(meta / "episodes.jsonl")
     kept, dropped = [], {"family": 0, "drawer_opening": 0}
     for r in rows:
         if families and r.get("arrival_family") not in families:

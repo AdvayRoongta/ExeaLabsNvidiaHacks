@@ -4,6 +4,7 @@ from pathlib import Path
 import pytest
 
 from arrival import cli
+from arrival.twin.compile import roomplan_twin
 
 
 def _ns(tmp_path, **kw):
@@ -145,7 +146,7 @@ def test_a_room_with_only_a_roomplan_export_is_built_like_demo_from_roomplan(tmp
     rp = scans / "kitchen_real_01" / "roomplan.json"
     shutil.copy(Path(cli.__file__).resolve().parents[1] / "tests" / "fixtures" / "roomplan" / "kitchen_real_01.json", rp)
     twin = cli._load_twin("kitchen_real_01", tmp_path / "out", scans)
-    assert twin == cli.roomplan_twin(rp, "kitchen_real_01")  # what demo --from-roomplan writes (seed 0)
+    assert twin == roomplan_twin(rp, "kitchen_real_01")  # what demo --from-roomplan writes (seed 0)
     assert twin["objects"] and twin["provenance"]["seeds"]["default_objects"] == 0
     cached = tmp_path / "out" / "twins" / "kitchen_real_01" / "twin.json"
     cached.parent.mkdir(parents=True)

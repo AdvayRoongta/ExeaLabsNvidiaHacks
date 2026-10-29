@@ -83,7 +83,7 @@ def table_move(table: dict, obj: dict, fixtures: list[dict], walls: list[dict], 
     clears furniture and walls is preferred; when neither does, the first is kept anyway and the pre-flight
     decides, so the reach planner (`find_shift`) can stand further along the edge, as it does for every other
     family."""
-    from arrival.twin.compile import _rect_distance
+    from arrival.twin.compile import rect_distance
 
     sx, sy = table["size"][0], table["size"][1]
     lx, ly = to_local(obj["position"][:2], table)
@@ -110,7 +110,7 @@ def table_move(table: dict, obj: dict, fixtures: list[dict], walls: list[dict], 
         if xs and not (min(xs) + BASE_CLEAR <= base[0] <= max(xs) - BASE_CLEAR
                        and min(ys) + BASE_CLEAR <= base[1] <= max(ys) - BASE_CLEAR):
             continue
-        if any(_rect_distance(base, f) < BASE_CLEAR for f in fixtures if f is not table and f["type"] != "sink"):
+        if any(rect_distance(base, f) < BASE_CLEAR for f in fixtures if f is not table and f["type"] != "sink"):
             continue
         return {"side": side, "target_xy": list(target), "base_xy": list(base)}
     # the study's desk: its chair stands on the midway spot of the only open edge, and returning None here hid the

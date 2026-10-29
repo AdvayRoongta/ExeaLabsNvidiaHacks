@@ -11,7 +11,7 @@ import yaml
 
 from arrival.catalog.fixtures import default_config_name, fixture_type
 from arrival.catalog.objects import ROOM_OBJECTS, catalog_id, room_kind, sample_size
-from arrival.export.provenance import OBJECT_PROVENANCE, note_seed, object_counts, stamp_twin
+from arrival.provenance import OBJECT_PROVENANCE, note_seed, object_counts, stamp_twin
 
 COUNTER_DEPTH = 0.65
 COUNTER_HEIGHT = 0.92
@@ -46,7 +46,7 @@ def to_world(local, fixture: dict) -> tuple[float, float]:
             fixture["position"][1] + s * local[0] + c * local[1])
 
 
-def _rect_distance(xy: list[float], fixture: dict) -> float:
+def rect_distance(xy: list[float], fixture: dict) -> float:
     """Horizontal distance from a point to a fixture's footprint rectangle (in the fixture's local frame)."""
     lx, ly = to_local(xy, fixture)
     sx, sy, _ = fixture["size"]
@@ -57,7 +57,7 @@ def _footprint_gap(f: dict, counter: dict) -> float:
     """Horizontal gap between a fixture's footprint (centre and corners) and a counter's footprint."""
     hx, hy = f["size"][0] / 2, f["size"][1] / 2
     pts = [f["position"][:2]] + [to_world((dx, dy), f) for dx in (-hx, hx) for dy in (-hy, hy)]
-    return min(_rect_distance(list(p), counter) for p in pts)
+    return min(rect_distance(list(p), counter) for p in pts)
 
 
 def is_counter_host(fixture: dict) -> bool:
@@ -104,12 +104,12 @@ def _synth_counters(fixtures: list[dict]) -> list[dict]:
     for f in fixtures:
         if f["source_category"] not in ("sink", "stove"):
             continue
-        if any(_rect_distance(f["position"], c) <= SYNTH_RADIUS or _footprint_gap(f, c) <= ADJACENT_GAP
+        if any(rect_distance(f["position"], c) <= SYNTH_RADIUS or _footprint_gap(f, c) <= ADJACENT_GAP
                for c in hosts):
             continue  # set into a counter, or built in beside one (a stove between two counters)
         # a sink within 0.3 m of a synthesized counter's end joins its run; a stove must sit on the counter itself
         held = next((c for c in out if (_footprint_gap(f, c) if f["source_category"] == "sink"
-                                        else _rect_distance(f["position"], c)) <= SYNTH_RADIUS), None)
+                                        else rect_distance(f["position"], c)) <= SYNTH_RADIUS), None)
         if held is not None:
             _extend(held, f, obstacles)  # same synthesized run: widen it if f hangs off an end
             continue
@@ -151,7 +151,7 @@ def wall_distance(fixture: dict, walls: list[dict], step: float = 0.05) -> float
         n = max(1, math.ceil(math.hypot(x1 - x0, y1 - y0) / step))
         for i in range(n + 1):
             t = i / n
-            best = min(best, _rect_distance([x0 + t * (x1 - x0), y0 + t * (y1 - y0)], fixture))
+            best = min(best, rect_distance([x0 + t * (x1 - x0), y0 + t * (y1 - y0)], fixture))
     return best
 
 
@@ -283,7 +283,7 @@ def place_default_objects(twin: dict, seed: int = 0) -> list[dict]:
     sinks = [f for f in blockers if f["type"] == "sink"]
     if not counters:
         return []
-    counter = min(counters, key=lambda c: (min((_rect_distance(s["position"], c) for s in sinks), default=0.0),
+    counter = min(counters, key=lambda c: (min((rect_distance(s["position"], c) for s in sinks), default=0.0),
                                            c.get("default_config_name") == "dining", c["id"]))
     rng = random.Random(seed)
     sx, sy, _ = counter["size"]
@@ -309,7 +309,7 @@ def place_default_objects(twin: dict, seed: int = 0) -> list[dict]:
             if edges:
                 local = (local[0], rng.choice((-1, 1)) * rng.uniform(sy / 2 - TABLE_EDGE_BAND, sy / 2 - half))
             x, y = to_world(local, counter)
-            if any(_rect_distance([x, y], b) < half for b in blockers if b is not counter):
+            if any(rect_distance([x, y], b) < half for b in blockers if b is not counter):
                 continue
             if any(math.dist([x, y], o["position"][:2]) < half + max(o["size"][:2]) for o in placed):
                 continue

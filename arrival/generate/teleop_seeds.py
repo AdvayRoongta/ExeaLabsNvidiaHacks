@@ -18,7 +18,7 @@ import numpy as np
 import pyarrow.parquet as pq
 
 from arrival.export.lerobot import list_column
-from arrival.export.provenance import canonical_sha256
+from arrival.provenance import canonical_sha256
 from arrival.export.quality import LENGTH_RATIO
 from arrival.generate.se3_retarget import record_source
 from arrival.sim.collect import SimEnv

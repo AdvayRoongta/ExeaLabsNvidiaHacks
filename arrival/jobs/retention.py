@@ -16,7 +16,7 @@ import shutil
 import time
 from pathlib import Path
 
-from arrival.jobs.worker import _read_status
+from arrival.jobs.queue import read_status
 
 FINISHED = ("done", "failed", "cancelled")
 ID_RE = re.compile(r"^[a-z0-9_]+$")
@@ -49,7 +49,7 @@ def delete_job(out_dir: Path, job_id: str, dry_run: bool = False) -> dict | None
     if not isinstance(job_id, str) or not ID_RE.match(job_id):
         return None
     out = Path(out_dir)
-    status = _read_status(out / "jobs" / job_id)
+    status = read_status(out / "jobs" / job_id)
     if status is None or status.get("id") != job_id:
         return None
     if status.get("status") not in FINISHED:
@@ -87,7 +87,7 @@ def gc(out_dir: Path, max_age_hours: float, now: float | None = None, dry_run: b
     root = Path(out_dir) / "jobs"
     removed, freed = [], 0
     for d in sorted(root.iterdir()) if root.is_dir() else []:
-        st = _read_status(d)
+        st = read_status(d)
         if st is None or st.get("status") not in FINISHED or d.name != st.get("id"):
             continue
         stamp = st.get("finished_at") or st.get("created_unix")

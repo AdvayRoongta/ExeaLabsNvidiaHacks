@@ -13,12 +13,14 @@ from pathlib import Path
 import mujoco
 import numpy as np
 
-from arrival.export.provenance import canonical_sha256, run_record
+from arrival.provenance import canonical_sha256, run_record
+from arrival.scan.bundle import resolve_scans, rooms_hint
 from arrival.sim import ik
 from arrival.sim.collect import FPS, SimEnv, run_episode
 from arrival.sim.export import SimDatasetWriter
 from arrival.sim.policy import Policy, ScriptedExpert
 from arrival.sim.tasks import finish_task, make_tasks
+from arrival.twin.compile import room_twin
 
 GENERATOR = "object_centric_se3_retarget"
 POSITION_TOL = 0.02  # m, reject an IK plan before rolling out if any sample exceeds this
@@ -348,8 +350,6 @@ def generate(twin, out_dir="out", *, source=None, sources=None, attempts=2, seed
 
 
 def main(argv=None):
-    from arrival.twin.compile import room_twin
-
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--room", default="hero_kitchen")
     ap.add_argument("--scans", default="scans")
@@ -361,8 +361,6 @@ def main(argv=None):
     args = ap.parse_args(argv)
     if args.attempts < 1 or args.seed < 0 or args.res <= 0 or args.res % 16:
         ap.error("attempts must be positive, seed nonnegative, res a positive multiple of 16")
-    from arrival.cli import resolve_scans
-    from arrival.scan.bundle import rooms_hint
     scans = resolve_scans(args.scans)
     try:
         source = json.loads(args.source.read_text()) if args.source else None

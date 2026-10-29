@@ -27,7 +27,7 @@ from pathlib import Path
 
 import numpy as np
 
-from arrival.export.provenance import git_state, sha256_file
+from arrival.provenance import git_state, sha256_file
 from arrival.scan import rgbd
 
 SHIFT_M, YAW_DEG = 0.15, 5.0  # the misaligned-pose control (eval/realism.perturb_pose)

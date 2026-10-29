@@ -22,6 +22,7 @@ import numpy as np
 import pyarrow.parquet as pq
 
 from arrival.export.lerobot import chunk_of
+from arrival.provenance import canonical_sha256
 
 SHARD_RE = re.compile(r"^(\d+)/(\d+)$")
 SHARD_DIR_RE = re.compile(r"^\d+of\d+$")
@@ -64,8 +65,6 @@ def shard_dir(out_dir: str | Path, i: int, n: int) -> Path:
 def twin_sha256(twin: dict) -> str:
     """sha256 of the room a run simulates (the twin less TWIN_UNHASHED), so a resume can tell an edited scan from a
     recompile of the same one."""
-    from arrival.export.provenance import canonical_sha256
-
     return canonical_sha256({k: v for k, v in twin.items() if k not in TWIN_UNHASHED})
 
 
@@ -136,7 +135,7 @@ class Journal:
 
 # ---- merge ----
 
-def _jsonl(path: Path) -> list[dict]:
+def read_jsonl_strict(path: Path) -> list[dict]:
     rows = []
     for number, line in enumerate(path.read_text().splitlines(), 1):
         if line.strip():
@@ -160,7 +159,7 @@ def _json(path: Path) -> dict:
     return value
 
 
-def _find_dataset(path: Path) -> Path:
+def find_dataset(path: Path) -> Path:
     """`path` is a dataset folder, or a shard's out folder holding datasets/<room>_sim."""
     if (path / "meta" / "info.json").is_file():
         return path
@@ -184,14 +183,14 @@ def expand_sources(paths: list[str | Path]) -> list[Path]:
 
 
 def _load(path: Path) -> dict:
-    root = _find_dataset(path)
+    root = find_dataset(path)
     info = _json(root / "meta" / "info.json")
     shard = info.get("arrival_shard")
     if not isinstance(shard, dict):
         raise ShardError(f"{root} is not a shard dataset (no arrival_shard in info.json); "
                          f"produce it with arrival sim --shard i/n")
     report = root.parent.parent / "reports" / f"{info.get('arrival_room_id')}_sim.json"
-    return {"root": root, "info": info, "shard": shard, "episodes": _jsonl(root / "meta" / "episodes.jsonl"),
+    return {"root": root, "info": info, "shard": shard, "episodes": read_jsonl_strict(root / "meta" / "episodes.jsonl"),
             "modality": _json(root / "meta" / "modality.json"),
             "embodiment": _json(root / "meta" / "embodiment.json"),
             "report": _json(report) if report.is_file() else None}

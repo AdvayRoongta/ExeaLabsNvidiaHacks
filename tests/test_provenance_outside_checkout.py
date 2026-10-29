@@ -6,7 +6,7 @@ import subprocess
 
 import pytest
 
-from arrival.export import provenance
+from arrival import provenance
 
 pytestmark = pytest.mark.skipif(shutil.which("git") is None, reason="needs git")
 

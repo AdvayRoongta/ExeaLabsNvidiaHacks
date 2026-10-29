@@ -8,11 +8,12 @@ import pytest
 mujoco = pytest.importorskip("mujoco")
 
 from arrival.scan.bundle import load_room  # noqa: E402
-from arrival.sim.collect import SimEnv, _front, run_episode  # noqa: E402
+from arrival.sim.collect import SimEnv, run_episode  # noqa: E402
 from arrival.sim.people import person_spec  # noqa: E402
+from arrival.sim.preflight import front  # noqa: E402
 from arrival.sim.policy import ScriptedExpert  # noqa: E402
 from arrival.sim.tasks import SIM_FAMILIES, finish_task, make_tasks  # noqa: E402
-from arrival.twin.compile import _rect_distance, compile_twin  # noqa: E402
+from arrival.twin.compile import rect_distance, compile_twin  # noqa: E402
 
 SCANS = "tests/fixtures/scans"
 RUNS = ("counter_w", "counter_s", "counter_e")
@@ -29,7 +30,7 @@ def _tasks(twin, families, n, people=0):
 
 
 def _footprint_clearance(twin, xy):
-    return min(_rect_distance(list(xy), f) for f in twin["fixtures"])
+    return min(rect_distance(list(xy), f) for f in twin["fixtures"])
 
 
 def test_every_fixture_type_is_built(twin):
@@ -50,9 +51,9 @@ def test_base_parks_in_front_of_fixtures_on_every_wall(twin):
         assert _footprint_clearance(twin, xy) >= 0.25, (t["task_id"], xy)
         assert 0.4 < xy[0] < 4.1 and 0.4 < xy[1] < 3.1, (t["task_id"], xy)
         heading = base.xmat.reshape(3, 3)[:, 0][:2]
-        assert np.dot(heading, _front(anchor)[:2]) < -0.99, t["task_id"]  # faces the fixture's front
+        assert np.dot(heading, front(anchor)[:2]) < -0.99, t["task_id"]  # faces the fixture's front
         near = 1.0 if t["family"] in ("open_oven", "open_dishwasher") else 0.8  # the flap door's length is in between
-        assert _rect_distance(list(xy), anchor) < near, t["task_id"]  # and stands at it, not across the room
+        assert rect_distance(list(xy), anchor) < near, t["task_id"]  # and stands at it, not across the room
 
 
 def test_sink_tasks_only_from_the_sink_run(twin):

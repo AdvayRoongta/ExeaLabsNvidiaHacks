@@ -284,8 +284,8 @@ def _write_episodes(root, rng, lengths):
                                   pa.array(list(a), type=pa.list_(pa.float32())),
                                   pa.array(np.arange(n, dtype=np.float32) / 20)], names=["observation.state", "action", "timestamp"])
         pq.write_table(t, root / "data" / "chunk-000" / f"episode_{i:06d}.parquet")
-        stats.append({"stats": {"observation.state": lerobot._stats(s), "action": lerobot._stats(a),
-                                  "timestamp": lerobot._stats(np.arange(n, dtype=np.float32) / 20)}})
+        stats.append({"stats": {"observation.state": lerobot.feature_stats(s), "action": lerobot.feature_stats(a),
+                                  "timestamp": lerobot.feature_stats(np.arange(n, dtype=np.float32) / 20)}})
     return stats
 
 
