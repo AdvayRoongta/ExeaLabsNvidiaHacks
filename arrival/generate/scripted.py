@@ -80,18 +80,21 @@ def seed_trajectory(start: list[float], target: list[float], miss: bool = False)
             eef, grip, obj = _lerp(placed, risen, (k - 10) / 5), 0.0, list(target)
         if miss:
             grip, obj = 0.0, list(start)
-        frames.append({
-            "t": round(i / FPS, 6),
-            "joint": [0.0] * 7,
-            "gripper": round(grip, 6),
-            "eef": [round(v, 6) for v in eef],
-            "object_position": [round(v, 6) for v in obj],
-        })
+        frames.append(
+            {
+                "t": round(i / FPS, 6),
+                "joint": [0.0] * 7,
+                "gripper": round(grip, 6),
+                "eef": [round(v, 6) for v in eef],
+                "object_position": [round(v, 6) for v in obj],
+            }
+        )
     return frames
 
 
-def retarget(seed_frames: list[dict], seed_start: list[float], task: dict, target: list[float],
-             miss: bool = False) -> list[dict]:
+def retarget(
+    seed_frames: list[dict], seed_start: list[float], task: dict, target: list[float], miss: bool = False
+) -> list[dict]:
     """Translate the seed's approach (hover/grasp/lift) by start delta; recompute carry/release to target."""
     d = [task["start_position"][i] - seed_start[i] for i in range(3)]
     if not any(abs(v) > 1e-12 for v in d) and not miss:
@@ -117,7 +120,10 @@ def build_seeds(tasks: list[dict], twin: dict) -> dict:
     # Prefer the scanned pose; if the counter inset rejected it, fall back to the lowest surviving pose.
     for t in sorted(tasks, key=lambda t: t["pose_index"]):
         if t["lighting"] == "neutral" and t["wording_index"] == 1 and seed_key(t) not in seeds:
-            seeds[seed_key(t)] = (list(t["start_position"]), seed_trajectory(t["start_position"], target_point(t, twin)))
+            seeds[seed_key(t)] = (
+                list(t["start_position"]),
+                seed_trajectory(t["start_position"], target_point(t, twin)),
+            )
     return seeds
 
 

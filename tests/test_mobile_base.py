@@ -19,9 +19,9 @@ from arrival.sim.tasks import make_tasks  # noqa: E402
 def _task(twin, family, seed=1, people=0, mobile=False):
     t = make_tasks(twin, [family], 1, seed=seed, people=people, mobile=mobile, log=lambda *_: None)[0]
     if family in ("open_drawer", "close_drawer", "put_in_drawer"):
-        t["handle"], t["joint"] = f'{t["fixture"]}_drawer0_handle', f'{t["fixture"]}_drawer0'
+        t["handle"], t["joint"] = f"{t['fixture']}_drawer0_handle", f"{t['fixture']}_drawer0"
     elif family in ("open_door", "close_door"):
-        t["joint"] = f'{t["fixture"]}_door'
+        t["joint"] = f"{t['fixture']}_door"
     return t
 
 
@@ -62,7 +62,11 @@ def test_collect_fixed_base_writes_the_base_slice(hero_twin, tmp_path):
     ds = res["dataset"]
     assert res["report_data"]["base"] == "fixed" and res["report_data"]["successes"] == 1
     m = json.loads((ds / "meta" / "modality.json").read_text())
-    assert m["state"]["base"] == {"start": 8, "end": 11} and m["action"]["base"] == {"start": 8, "end": 11, "absolute": True}
+    assert m["state"]["base"] == {"start": 8, "end": 11} and m["action"]["base"] == {
+        "start": 8,
+        "end": 11,
+        "absolute": True,
+    }
     e = json.loads((ds / "meta" / "embodiment.json").read_text())
     assert e["dof_base"] == 3 and e["base"] == "planar" and e["base_frame"] == "room" and e["base_actuated"] is False
     info = json.loads((ds / "meta" / "info.json").read_text())
@@ -123,7 +127,9 @@ def test_a_parked_mobile_base_never_waits_for_people(hero_twin):
     for _ in range(len(pol.plan) + 20):
         b = env.base_pose()
         sag = max(sag, float(np.linalg.norm(b[:2] - env.base0[:2])))
-        env.people_xy = [b[:2] + 0.5 * np.array([np.cos(a), np.sin(a)]) for a in np.linspace(0, 2 * np.pi, 8, endpoint=False)]
+        env.people_xy = [
+            b[:2] + 0.5 * np.array([np.cos(a), np.sin(a)]) for a in np.linspace(0, 2 * np.pi, 8, endpoint=False)
+        ]
         env.step(np.asarray(pol.act(env.obs()), dtype=float))
     ok, detail = env.success(task)
     env.close()
@@ -165,6 +171,7 @@ def test_mobile_base_opens_door_without_human_contact(hero_twin):
 
 # ---- on top of the any-wall pre-flight (L1, L2) ----
 
+
 def test_preflight_checks_the_drive_spot_and_the_whole_path(hero_twin):
     import copy
 
@@ -178,8 +185,15 @@ def test_preflight_checks_the_drive_spot_and_the_whole_path(hero_twin):
     start, _, _ = base_pose(hero_twin, task, mobile=True)
     end = drive_spot(hero_twin, task)
     blocked = copy.deepcopy(hero_twin)  # a column on the straight line between the two stand spots, ends untouched
-    blocked["fixtures"].append({"id": "pillar", "type": "storage", "yaw": 0.0, "size": [0.3, 0.3, 1.5],
-                                "position": [(start[0] + end[0]) / 2, (start[1] + end[1]) / 2, 0.75]})
+    blocked["fixtures"].append(
+        {
+            "id": "pillar",
+            "type": "storage",
+            "yaw": 0.0,
+            "size": [0.3, 0.3, 1.5],
+            "position": [(start[0] + end[0]) / 2, (start[1] + end[1]) / 2, 0.75],
+        }
+    )
     why = check_task(blocked, task, mobile=True)
     assert why and "drive path" in why and "pillar" in why
 

@@ -9,7 +9,13 @@ OBJECT_SPECS = {
     "mug": ("cylinder", [0.08, 0.08, 0.10], 0.30, 1.0, "0.85 0.3 0.2 1"),
     "cup": ("cylinder", [0.07, 0.07, 0.09], 0.20, 1.0, "0.3 0.55 0.85 1"),
     "bowl": ("cylinder", [0.14, 0.14, 0.06], 0.25, 1.0, "0.9 0.9 0.8 1"),
-    "plate": ("cylinder", [0.22, 0.22, 0.03], 0.40, 0.8, "0.92 0.92 0.9 1"),  # a deep plate: the rim is what the gripper holds
+    "plate": (
+        "cylinder",
+        [0.22, 0.22, 0.03],
+        0.40,
+        0.8,
+        "0.92 0.92 0.9 1",
+    ),  # a deep plate: the rim is what the gripper holds
     "sponge": ("box", [0.10, 0.06, 0.03], 0.03, 1.2, "0.95 0.85 0.2 1"),
     "apple": ("sphere", [0.076, 0.076, 0.076], 0.18, 0.9, "0.75 0.15 0.12 1"),
     "bottle": ("bottle", [0.066, 0.066, 0.22], 0.55, 0.6, "0.55 0.75 0.9 0.7"),
@@ -21,7 +27,15 @@ OBJECT_SPECS = {
     "laptop": ("box", [0.30, 0.21, 0.02], 1.20, 0.6, "0.62 0.64 0.67 1"),  # closed; too wide to pinch, scenery
 }
 OBJECT_MAP = {label: label for label in OBJECT_SPECS}
-PICKABLE = ("mug", "cup", "sponge", "apple", "bottle", "book", "remote")  # fit the 10 cm gripper opening and are held by the body
+PICKABLE = (
+    "mug",
+    "cup",
+    "sponge",
+    "apple",
+    "bottle",
+    "book",
+    "remote",
+)  # fit the 10 cm gripper opening and are held by the body
 RIM_HELD = ("bowl", "plate")  # hollow, pinched by the rim nearest the robot (MAN-4)
 HANDLE_HELD = ("pan",)  # pinched across the handle, close to the body
 THIN_HELD = ("spatula",)  # 1 cm flat: pinched across its width with the pad tips just over the counter (L26)
@@ -41,7 +55,7 @@ SIZE_VARIATION = 0.08  # +-8% on the footprint and on the height, drawn separate
 
 
 def room_kind(fixtures: list[dict]) -> str:
-    """"kitchen", "bedroom", "living_room" or "office", from the scanned categories of `fixtures` (the twin's
+    """ "kitchen", "bedroom", "living_room" or "office", from the scanned categories of `fixtures` (the twin's
     `source_category`): any kitchen fixture makes a kitchen, then a bed a bedroom, a sofa, television or fireplace a
     living room, and a table or chair with none of those an office. A room with none of these (nothing scanned yet)
     is a kitchen, the pipeline's original assumption."""

@@ -17,9 +17,19 @@ from arrival.sim.people import CLEAR, LANE, Walkers  # noqa: E402
 from arrival.sim.policy import ScriptedExpert, VLANotConfigured  # noqa: E402
 from arrival.twin.compile import compile_twin  # noqa: E402
 
-SINK_TASK = {"family": "counter_to_sink", "object_id": "mug_1", "object_label": "mug", "source": "counter_a",
-             "target": "sink_1", "target_x": 1.6, "start": [1.0, 0.35, 0.97], "lighting": "neutral",
-             "instruction": "Put the mug in the sink.", "task_id": "t0", "seed": 0}
+SINK_TASK = {
+    "family": "counter_to_sink",
+    "object_id": "mug_1",
+    "object_label": "mug",
+    "source": "counter_a",
+    "target": "sink_1",
+    "target_x": 1.6,
+    "start": [1.0, 0.35, 0.97],
+    "lighting": "neutral",
+    "instruction": "Put the mug in the sink.",
+    "task_id": "t0",
+    "seed": 0,
+}
 
 
 @pytest.fixture(scope="module")
@@ -45,8 +55,7 @@ def test_eval_doc_quotes_wilson_widths():
 
 
 def test_scripted_eval_shape(twin, tmp_path):
-    rep = evaluate(twin, ["counter_to_sink", "open_drawer"], 2, res=32, people=1, out_dir=tmp_path,
-                   log=lambda *_: None)
+    rep = evaluate(twin, ["counter_to_sink", "open_drawer"], 2, res=32, people=1, out_dir=tmp_path, log=lambda *_: None)
     saved = json.loads(rep["path"].read_text(encoding="utf-8"))
     assert set(saved["families"]) == {"counter_to_sink", "open_drawer"}
     for f in saved["families"].values():
@@ -99,8 +108,7 @@ def test_holdout_uses_template_4_and_y_offset(twin, tmp_path, monkeypatch):
 
     ran = []
     monkeypatch.setattr(harness, "run_episode", lambda env, pol, task: ran.append(task) or run_episode(env, pol, task))
-    rep = evaluate(twin, ["counter_to_sink"], 1, res=32, people=0, holdout=True, out_dir=tmp_path,
-                   log=lambda *_: None)
+    rep = evaluate(twin, ["counter_to_sink"], 1, res=32, people=0, holdout=True, out_dir=tmp_path, log=lambda *_: None)
     assert rep["holdout"] is True and rep["families"]["counter_to_sink"]["min_human_distance_m"] is None
     (task,) = ran
     obj = next(o for o in twin["objects"] if o["id"] == task["object_id"])
@@ -136,15 +144,41 @@ def test_training_tasks_exclude_the_holdout(twin):
 def test_eval_vla_needs_server(twin, monkeypatch, tmp_path):
     monkeypatch.delenv("GR00T_POLICY_URL", raising=False)
     with pytest.raises(VLANotConfigured):
-        evaluate(twin, ["counter_to_sink"], 1, policy_name="vla", checkpoint_id="test-mock", out_dir=tmp_path, log=lambda *_: None)
+        evaluate(
+            twin,
+            ["counter_to_sink"],
+            1,
+            policy_name="vla",
+            checkpoint_id="test-mock",
+            out_dir=tmp_path,
+            log=lambda *_: None,
+        )
 
 
 def test_cli_eval_vla_unreachable_exits_2(monkeypatch, capsys):
     from arrival.cli import main
 
     monkeypatch.setenv("GR00T_POLICY_URL", "http://127.0.0.1:9")  # discard port, nothing listens
-    assert main(["eval", "--policy", "vla", "--checkpoint-id", "test-mock", "--episodes", "1", "--families", "counter_to_sink", "--people", "0",
-                 "--res", "32"]) == 2
+    assert (
+        main(
+            [
+                "eval",
+                "--policy",
+                "vla",
+                "--checkpoint-id",
+                "test-mock",
+                "--episodes",
+                "1",
+                "--families",
+                "counter_to_sink",
+                "--people",
+                "0",
+                "--res",
+                "32",
+            ]
+        )
+        == 2
+    )
     err = capsys.readouterr().err
     assert err.startswith("policy vla: no answer from http://127.0.0.1:9:") and "Traceback" not in err
 

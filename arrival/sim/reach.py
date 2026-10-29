@@ -38,17 +38,34 @@ TOL_CONTACT = 0.025  # m: IK position error allowed where the hand grasps, sets 
 TOL_HOVER = 0.05  # m: allowed in free air, where the hand only hovers or carries lower than planned
 TOL_HOVER_FAMILY = {"put_in_drawer": 0.01}  # its misses (1.3 and 4.0 cm) overlap its successes (3.1 to 4.0 cm)
 # the three tolerances come from 117 physics runs over pushed-back starts on three kitchens (BUILD-LOG, L17)
-SHIFTS = sorted(((da, do) for do in (0.0, -0.06, 0.06, 0.12) for da in (0.0, 0.1, -0.1, 0.2, -0.2)),
-                key=lambda d: math.hypot(*d))[1:]
+SHIFTS = sorted(
+    ((da, do) for do in (0.0, -0.06, 0.06, 0.12) for da in (0.0, 0.1, -0.1, 0.2, -0.2)), key=lambda d: math.hypot(*d)
+)[1:]
 # (along the fixture's local x, out from its face) in metres, nearest first; the rule's own spot (0, 0) is tried before these and left out
-WIDE_SHIFTS = sorted(((da, do) for do in (0.0, -0.1, 0.1, -0.2, 0.2, 0.3) for da in (round(k * 0.05, 2) for k in range(-20, 21))
-                      if abs(da) > 0.2 or abs(do) > 0.12), key=lambda d: (math.hypot(*d), d))
+WIDE_SHIFTS = sorted(
+    (
+        (da, do)
+        for do in (0.0, -0.1, 0.1, -0.2, 0.2, 0.3)
+        for da in (round(k * 0.05, 2) for k in range(-20, 21))
+        if abs(da) > 0.2 or abs(do) > 0.12
+    ),
+    key=lambda d: (math.hypot(*d), d),
+)
 # the second grid, in the same frame: used only when no SHIFTS entry passes, so a fixture whose rule spot is in a wall
 # or on its neighbour (a corner cabinet beside the sink run, a fridge whose free edge is at the room's corner) can be
 # stood at from further along its own run. The planner's checks are the same; the expert's run decides the rest.
-IK_FAMILIES = ("counter_to_sink", "counter_to_counter", "move_on_table", "put_in_drawer", "wipe_counter",
-               "load_dishwasher", "unload_dishwasher")  # the families whose hand targets come from the twin alone
-WIDE_FAMILIES = IK_FAMILIES + ("open_door",)  # close_door is left out: its two-phase push is not modelled by the waypoints here
+IK_FAMILIES = (
+    "counter_to_sink",
+    "counter_to_counter",
+    "move_on_table",
+    "put_in_drawer",
+    "wipe_counter",
+    "load_dishwasher",
+    "unload_dishwasher",
+)  # the families whose hand targets come from the twin alone
+WIDE_FAMILIES = IK_FAMILIES + (
+    "open_door",
+)  # close_door is left out: its two-phase push is not modelled by the waypoints here
 # the families the second grid serves: the IK families (their reach is solved at each spot) and the cabinet door tasks,
 # whose handle is reached from beside the door (the corner cabinet of u_kitchen_42, 8 of 8 runs from 0.2 m along). A drawer
 # is pulled from straight in front of it (0 of 36 spots on the one drawer a sink blocks) and the fridge's hook-and-push
@@ -63,11 +80,15 @@ def arm_model(arm: str = "procedural"):
 
     if arm == "menagerie":
         f = menagerie.arm_fragments((0.0, 0.0, 0.75), 0.0)
-        xml = (f'<mujoco><compiler angle="radian" autolimits="true" meshdir="{f["meshdir"]}"/>'
-               f'<default>{f["defaults"]}</default><asset>{f["assets"]}</asset><worldbody>{f["body"]}</worldbody></mujoco>')
+        xml = (
+            f'<mujoco><compiler angle="radian" autolimits="true" meshdir="{f["meshdir"]}"/>'
+            f"<default>{f['defaults']}</default><asset>{f['assets']}</asset><worldbody>{f['body']}</worldbody></mujoco>"
+        )
     else:
-        xml = (f'<mujoco><compiler angle="radian" autolimits="true"/>'
-               f'<worldbody>{robot.arm_xml((0.0, 0.0, 0.75), 0.0)}</worldbody></mujoco>')
+        xml = (
+            f'<mujoco><compiler angle="radian" autolimits="true"/>'
+            f"<worldbody>{robot.arm_xml((0.0, 0.0, 0.75), 0.0)}</worldbody></mujoco>"
+        )
     model = mujoco.MjModel.from_xml_string(xml)
     data = mujoco.MjData(model)
     qadr = [int(model.joint(j).qposadr[0]) for j in robot.ARM_JOINTS]
@@ -96,8 +117,9 @@ def grasp(o: dict, body: np.ndarray, base_xy) -> tuple[np.ndarray, float | None,
     return np.zeros(2), None, body[2] + min(0.01, sz / 2 * 0.2)
 
 
-def waypoints(twin: dict, task: dict, obj_xy=None, mobile: bool = False, base_xy=None
-              ) -> list[tuple[str, np.ndarray, float, bool]]:
+def waypoints(
+    twin: dict, task: dict, obj_xy=None, mobile: bool = False, base_xy=None
+) -> list[tuple[str, np.ndarray, float, bool]]:
     """(name, eef position in the world, gripper yaw in the world, from the drive spot) for each waypoint the
     expert solves. Heights follow ScriptedExpert._waypoints; empty for the families IK_FAMILIES leaves out.
     `base_xy` is where the base stands (a rim grasp takes the rim nearest it)."""
@@ -125,31 +147,54 @@ def waypoints(twin: dict, task: dict, obj_xy=None, mobile: bool = False, base_xy
         p = np.array([body[0] + off[0], body[1] + off[1], gz])
         tgt = place_point(twin, task) + np.array([off[0], off[1], gz - body[2]])
         drive = mobile_drive(task, mobile)
-        out = [(n, q, yaw, False) for n, q in [("over the object", p + 0.18 * up), ("the object", p),
-                                               ("the lifted object", p + 0.22 * up)]]
-        return out + [("over the place point", np.array([tgt[0], tgt[1], gz + 0.22]), yaw, drive),
-                      ("the place point", tgt, yaw, drive)]
+        out = [
+            (n, q, yaw, False)
+            for n, q in [("over the object", p + 0.18 * up), ("the object", p), ("the lifted object", p + 0.22 * up)]
+        ]
+        return out + [
+            ("over the place point", np.array([tgt[0], tgt[1], gz + 0.22]), yaw, drive),
+            ("the place point", tgt, yaw, drive),
+        ]
     if fam == "put_in_drawer":
         c = fx[task["fixture"]]
         tray = to_world((drawer_x(c, twin["fixtures"]), c["size"][1] / 2 + DRAWER_OPEN_PUT / 2), c)
         t = np.array([tray[0], tray[1], CARCASS_H - 0.07 + hh + 0.01])
         lift = gz + 0.15
-        return [(n, q, run + math.pi / 2, False) for n, q in pick + [
-            ("the lifted object", np.array([p[0], p[1], lift])), ("over the drawer tray", np.array([t[0], t[1], lift])),
-            ("the drawer tray", t)]]
+        return [
+            (n, q, run + math.pi / 2, False)
+            for n, q in pick
+            + [
+                ("the lifted object", np.array([p[0], p[1], lift])),
+                ("over the drawer tray", np.array([t[0], t[1], lift])),
+                ("the drawer tray", t),
+            ]
+        ]
     if fam == "wipe_counter":
         u = np.array([math.cos(run), math.sin(run), 0.0])
         press = np.array([p[0], p[1], _top(src) + hh - 0.004])
-        return [(n, q, run, False) for n, q in [("over the sponge", p + 0.15 * up), ("the sponge", p),
-                                                 ("the stroke end", press + STROKE * u), ("the stroke end", press - STROKE * u)]]
+        return [
+            (n, q, run, False)
+            for n, q in [
+                ("over the sponge", p + 0.15 * up),
+                ("the sponge", p),
+                ("the stroke end", press + STROKE * u),
+                ("the stroke end", press - STROKE * u),
+            ]
+        ]
     # load_dishwasher / unload_dishwasher
     rack = np.array([*rack_spot(fx[task["fixture"]]), RACK_Z + 0.01 + hh + 0.01])
     counter = np.array([obj_xy[0], obj_xy[1], _top(src) + hh + 0.012])
     tgt = rack if fam == "load_dishwasher" else counter
     lift = max(gz, tgt[2]) + 0.15
-    return [(n, q, run, False) for n, q in [("over the object", np.array([p[0], p[1], lift])), ("the object", p),
-                                             ("over the target", np.array([tgt[0], tgt[1], lift])),
-                                             ("the rack" if fam == "load_dishwasher" else "the counter spot", tgt)]]
+    return [
+        (n, q, run, False)
+        for n, q in [
+            ("over the object", np.array([p[0], p[1], lift])),
+            ("the object", p),
+            ("over the target", np.array([tgt[0], tgt[1], lift])),
+            ("the rack" if fam == "load_dishwasher" else "the counter spot", tgt),
+        ]
+    ]
 
 
 def is_hover(name: str) -> bool:
@@ -184,8 +229,9 @@ def miss(errs: list[tuple[str, float]], family: str) -> tuple[int, str, float, f
     return None if worst[0] <= 0 else (worst[1], worst[2], worst[3], hover if is_hover(worst[2]) else TOL_CONTACT)
 
 
-def find_shift(twin: dict, v: dict, starts: list, mobile: bool = False, arm: str = "procedural"
-               ) -> tuple[float, float] | None:
+def find_shift(
+    twin: dict, v: dict, starts: list, mobile: bool = False, arm: str = "procedural"
+) -> tuple[float, float] | None:
     """The nearest SHIFTS entry (along the run, out from it) from which the pool variation `v` (with its "family")
     passes `check_task` at every start in `starts`, or None; then the WIDE_SHIFTS the same way. Only for WIDE_FAMILIES:
     the other families' stand spots are fitted to the part they open."""
@@ -228,6 +274,8 @@ def check_task(twin: dict, task: dict, obj_xy=None, mobile: bool = False, arm: s
         if m:
             k, at, err, tol = m
             d = float(np.linalg.norm(chain[k][1][:2] - xy))
-            return (f"{at} ({d:.2f} m out) is beyond the arm's reach from {name} at {anchor['id']}: "
-                    f"the IK solve misses it by {err * 100:.1f} cm (allowed {tol * 100:.1f} cm)")
+            return (
+                f"{at} ({d:.2f} m out) is beyond the arm's reach from {name} at {anchor['id']}: "
+                f"the IK solve misses it by {err * 100:.1f} cm (allowed {tol * 100:.1f} cm)"
+            )
     return None

@@ -47,7 +47,9 @@ FAUCET_STANDOFF = 0.34  # base column to counter front for turn_on_faucet (0.28 
 # of the counter above shoulder height, and a horizontal hand reaches it with less joint strain from further out
 ARM_STANDOFF_TRIM = {"procedural": 0.0, "menagerie": 0.02}  # the real hand's closed fingertips reach 8 mm past the eef,
 # the procedural fingers 23 mm: the faucet push stands 2 cm closer with it (0.34 misses the lever, 0.32 turns it to 1.10 rad)
-DISHWASHER_SIDE = 0.55  # load/unload_dishwasher: the base parks this far beside the dishwasher centre, clear of its door
+DISHWASHER_SIDE = (
+    0.55  # load/unload_dishwasher: the base parks this far beside the dishwasher centre, clear of its door
+)
 RACK_FRONT = 0.15  # the rack spot an object is set into (or taken from) lies this far out from the dishwasher front
 FLAP_DOOR_BELOW = {"open_oven": 0.24, "open_dishwasher": 0.18}  # fixture height minus the door's height, per family
 PICK_PLACE = ("counter_to_sink", "counter_to_counter")
@@ -81,8 +83,11 @@ def top(f: dict) -> float:
 def park(c: dict, along: float, out: float) -> tuple[float, float, float]:
     """Base centre `along` the fixture's run (its local x) and `out` beyond its front face."""
     yaw, d = c.get("yaw", 0.0), c["size"][1] / 2 + out
-    return (c["position"][0] + np.cos(yaw) * along - np.sin(yaw) * d,
-            c["position"][1] + np.sin(yaw) * along + np.cos(yaw) * d, 0.75)
+    return (
+        c["position"][0] + np.cos(yaw) * along - np.sin(yaw) * d,
+        c["position"][1] + np.sin(yaw) * along + np.cos(yaw) * d,
+        0.75,
+    )
 
 
 def place_point(twin: dict, task: dict) -> np.ndarray:
@@ -127,8 +132,9 @@ def rack_spot(d: dict) -> tuple[float, float]:
     return float(d["position"][0] + n[0] * out), float(d["position"][1] + n[1] * out)
 
 
-def base_pose(twin: dict, task: dict, obj_xy=None, mobile: bool = False, arm: str = "procedural"
-              ) -> tuple[tuple[float, float, float], float, dict]:
+def base_pose(
+    twin: dict, task: dict, obj_xy=None, mobile: bool = False, arm: str = "procedural"
+) -> tuple[tuple[float, float, float], float, dict]:
     """(base position, base yaw in degrees, anchor fixture): in front of the fixture the task works at, facing it,
     on any wall. `obj_xy` is the object's xy at the start (the task's `start` when omitted). `mobile` moves the
     counter_to_counter stand spot MOBILE_STEP toward the target instead of midway: the base drives the rest.
@@ -154,7 +160,9 @@ def base_pose(twin: dict, task: dict, obj_xy=None, mobile: bool = False, arm: st
     return base, yaw, src
 
 
-def _stand_rule(twin: dict, task: dict, obj_xy, mobile: bool, arm: str) -> tuple[tuple[float, float, float], float, dict]:
+def _stand_rule(
+    twin: dict, task: dict, obj_xy, mobile: bool, arm: str
+) -> tuple[tuple[float, float, float], float, dict]:
     fx = {f["id"]: f for f in twin["fixtures"]}
     fam, fixtures = task["family"], twin["fixtures"]
     if obj_xy is None and "object_id" in task:
@@ -240,10 +248,13 @@ def _close_door_gaps(twin: dict, c: dict) -> tuple[float, float]:
         return abs(dx * n[1] - dy * n[0]) < math.sin(math.radians(5)) * math.hypot(dx, dy)
 
     walls = [w for w in twin.get("walls") or [] if square(w)]
-    return tuple(min((point_segment_distance(p, w["start"], w["end"]) - w.get("thickness", 0.0) / 2 for w in walls),
-                     default=math.inf)
-                 for p in (to_world((door_hinge_x(c, twin["fixtures"]) + 0.02, c["size"][1] / 2), c),
-                           to_world((hx, hy), c)))
+    return tuple(
+        min(
+            (point_segment_distance(p, w["start"], w["end"]) - w.get("thickness", 0.0) / 2 for w in walls),
+            default=math.inf,
+        )
+        for p in (to_world((door_hinge_x(c, twin["fixtures"]) + 0.02, c["size"][1] / 2), c), to_world((hx, hy), c))
+    )
 
 
 def _footprint_distance(xy, f: dict) -> float:
@@ -266,10 +277,13 @@ def _door_wall_gaps(twin: dict, c: dict, a: float) -> tuple[float, float]:
         return abs(dx * n[1] - dy * n[0]) < math.sin(math.radians(5)) * math.hypot(dx, dy)
 
     walls = [w for w in twin.get("walls") or [] if square(w)]
-    return tuple(min((point_segment_distance(p, w["start"], w["end"]) - w.get("thickness", 0.0) / 2 for w in walls),
-                     default=math.inf)
-                 for p in (to_world((door_hinge_x(c, twin["fixtures"]) + 0.02, c["size"][1] / 2), c),
-                           to_world((hx, hy), c)))
+    return tuple(
+        min(
+            (point_segment_distance(p, w["start"], w["end"]) - w.get("thickness", 0.0) / 2 for w in walls),
+            default=math.inf,
+        )
+        for p in (to_world((door_hinge_x(c, twin["fixtures"]) + 0.02, c["size"][1] / 2), c), to_world((hx, hy), c))
+    )
 
 
 def open_parts(twin: dict, task: dict) -> list[tuple[str, dict, tuple[float, float, float, float]]]:
@@ -286,8 +300,13 @@ def open_parts(twin: dict, task: dict) -> list[tuple[str, dict, tuple[float, flo
         return [(f"{f['id']} door lying open", f, (-sx / 2, sx / 2, sy / 2, sy / 2 + 0.016 + sz - below))]
     if fam in DRAWER_TRAVEL:
         dx = drawer_x(f, twin["fixtures"])
-        return [(f"{f['id']} drawer pulled out", f,
-                 (dx - DRAWER_W / 2, dx + DRAWER_W / 2, sy / 2, sy / 2 + DRAWER_TRAVEL[fam] + DRAWER_HANDLE))]
+        return [
+            (
+                f"{f['id']} drawer pulled out",
+                f,
+                (dx - DRAWER_W / 2, dx + DRAWER_W / 2, sy / 2, sy / 2 + DRAWER_TRAVEL[fam] + DRAWER_HANDLE),
+            )
+        ]
     return []
 
 

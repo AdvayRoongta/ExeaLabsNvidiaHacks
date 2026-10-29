@@ -109,14 +109,20 @@ def load_upload(path: Path, room_id: str) -> dict:
         bundle["source_room_id"] = bundle["room_id"]
         bundle["room_id"] = room_id
         return bundle
+
     def posed(d: dict) -> bool:
-        return any(isinstance(x, dict) and "transform" in x for k in ("walls", "objects")
-                   for x in (d[k] if isinstance(d.get(k), list) else []))
+        return any(
+            isinstance(x, dict) and "transform" in x
+            for k in ("walls", "objects")
+            for x in (d[k] if isinstance(d.get(k), list) else [])
+        )
 
     rooms = data.get("rooms")  # a CapturedStructure export nests the room dicts
     if posed(data) or (isinstance(rooms, list) and any(isinstance(r, dict) and posed(r) for r in rooms)):
         return roomplan.to_bundle(data, room_id)
-    raise ValueError("upload is neither a RoomPlan export (walls/objects with transform) nor a scan.json (schema_version)")
+    raise ValueError(
+        "upload is neither a RoomPlan export (walls/objects with transform) nor a scan.json (schema_version)"
+    )
 
 
 def _write_status(job_dir: Path, status: dict) -> dict:
@@ -154,6 +160,7 @@ def build_usage(status: dict, wall_seconds: float, stage_seconds: dict | None = 
     """Units one job consumed on this machine. Anything not measured is None, never zero: ``frames`` and the byte
     counts exist only when the dataset or zip was written, and nothing here is priced (a local CPU run is $0 and
     ``arrival.eval.cost`` attaches no rate to it)."""
+
     def size(key):
         try:
             return Path(status[key]).stat().st_size if status.get(key) else None
@@ -167,10 +174,17 @@ def build_usage(status: dict, wall_seconds: float, stage_seconds: dict | None = 
             frames = int(json.loads((Path(ds) / "meta" / "info.json").read_text(encoding="utf-8"))["total_frames"])
         except (OSError, ValueError, KeyError, TypeError):
             frames = None
-    return {"wall_seconds": round(wall_seconds, 3), "stage_seconds": dict(stage_seconds or {}),
-            "episodes_attempted": status.get("attempts"), "episodes_succeeded": status.get("successes"),
-            "frames": frames, "upload_bytes": status.get("bytes"), "zip_bytes": size("zip"),
-            "dataset_bytes": _dir_bytes(ds) if ds else None, "measured_on": "local_cpu"}
+    return {
+        "wall_seconds": round(wall_seconds, 3),
+        "stage_seconds": dict(stage_seconds or {}),
+        "episodes_attempted": status.get("attempts"),
+        "episodes_succeeded": status.get("successes"),
+        "frames": frames,
+        "upload_bytes": status.get("bytes"),
+        "zip_bytes": size("zip"),
+        "dataset_bytes": _dir_bytes(ds) if ds else None,
+        "measured_on": "local_cpu",
+    }
 
 
 def record_usage(out_dir: Path, status: dict) -> None:
@@ -179,9 +193,16 @@ def record_usage(out_dir: Path, status: dict) -> None:
     usage = status.get("usage")
     if not isinstance(usage, dict):
         return
-    line = {"id": status.get("id"), "room_id": status.get("room_id"), "status": status.get("status"),
-            "finished_at": status.get("finished_at"), "job_attempts": status.get("job_attempts"),
-            "attempts": status.get("attempts"), "successes": status.get("successes"), **usage}
+    line = {
+        "id": status.get("id"),
+        "room_id": status.get("room_id"),
+        "status": status.get("status"),
+        "finished_at": status.get("finished_at"),
+        "job_attempts": status.get("job_attempts"),
+        "attempts": status.get("attempts"),
+        "successes": status.get("successes"),
+        **usage,
+    }
     path = Path(out_dir).joinpath(*USAGE_LEDGER)
     path.parent.mkdir(parents=True, exist_ok=True)
     with open(path, "a", encoding="utf-8") as f:  # one write per line: O_APPEND keeps concurrent workers' lines whole
@@ -203,8 +224,13 @@ def objects_status(twin: dict) -> dict:
     """What the job status says about the twin's objects: how many carry each provenance label and how the
     detection run went (`not_run` with a reason when it did not read a frame, or when the scan lists its objects)."""
     run = twin.get("object_detection") or {"state": "not_run", "reason": "the scan lists its objects"}
-    return {"counts": object_counts(twin), "detection": run["state"], "reason": run.get("reason"),
-            "reply_sources": run.get("reply_sources", {}), "rejected": len(run.get("rejected", []))}
+    return {
+        "counts": object_counts(twin),
+        "detection": run["state"],
+        "reason": run.get("reason"),
+        "reply_sources": run.get("reply_sources", {}),
+        "rejected": len(run.get("rejected", [])),
+    }
 
 
 def progress_log(job_dir: Path, status: dict, total: int, log):
@@ -220,10 +246,12 @@ def progress_log(job_dir: Path, status: dict, total: int, log):
             p = status["progress"]
             p["done"] = min(p["done"] + 1, p["total"])
             _write_status(job_dir, status)
+
     return hook
 
 
 # ---- claiming, heartbeat, stale reaping -------------------------------------------------------------------------
+
 
 def _create_lock(path: Path, owner: str) -> bool:
     try:
@@ -336,12 +364,29 @@ def claim_next(jobs_root: Path, worker: str | None = None) -> tuple[Path, dict] 
             _unlink(job_dir / LOCK)
             continue
         n = st.get("job_attempts")
-        st.update({"job_attempts": (n if isinstance(n, int) and n > 0 else 0) + 1,
-                   "status": "running", "stage": None, "started_at": int(time.time()), "finished_at": None,
-                   "error": None, "room_id": None, "twin_dir": None, "dataset_dir": None, "zip": None,
-                   "attempts": None, "successes": None, "skipped": None, "error_kind": None,
-                   "error_reasons": None, "realism": None, "usage": None, "progress": None,
-                   "worker": worker})
+        st.update(
+            {
+                "job_attempts": (n if isinstance(n, int) and n > 0 else 0) + 1,
+                "status": "running",
+                "stage": None,
+                "started_at": int(time.time()),
+                "finished_at": None,
+                "error": None,
+                "room_id": None,
+                "twin_dir": None,
+                "dataset_dir": None,
+                "zip": None,
+                "attempts": None,
+                "successes": None,
+                "skipped": None,
+                "error_kind": None,
+                "error_reasons": None,
+                "realism": None,
+                "usage": None,
+                "progress": None,
+                "worker": worker,
+            }
+        )
         if st.get("frames"):
             st["frames"].update(consumed=False, used_for=None)
         return job_dir, _write_status(job_dir, st)
@@ -367,9 +412,18 @@ def requeue_failed(job_dir: Path, status: dict, limits: Limits, log=print) -> bo
         log(f"[work] {status['id']}: not retried, a cancel was requested")
         return False
     delay = min(300, limits.job_retry_backoff * (2 ** len(errors)))
-    status.update({"status": "queued", "stage": None, "started_at": None, "finished_at": None, "worker": None,
-                   "error": None, "retry_errors": [*errors, status.get("error")],
-                   "not_before": int(time.time() + delay)})
+    status.update(
+        {
+            "status": "queued",
+            "stage": None,
+            "started_at": None,
+            "finished_at": None,
+            "worker": None,
+            "error": None,
+            "retry_errors": [*errors, status.get("error")],
+            "not_before": int(time.time() + delay),
+        }
+    )
     log(f"[work] {status['id']}: queued again, retry {len(errors) + 1} of {limits.job_retries}")
     return True
 
@@ -411,12 +465,24 @@ def reap_stale(jobs_root: Path, stale_seconds: float = 120.0, log=print, now: fl
                 _unlink(d / CANCEL)
                 log(f"[work] {st['id']}: cancelled (its worker died)")
             elif int(st.get("requeues") or 0) >= MAX_REQUEUES:
-                st.update({"status": "failed", "finished_at": done,
-                           "error": f"WorkerLost: the worker died {MAX_REQUEUES + 1} times while running this job"})
+                st.update(
+                    {
+                        "status": "failed",
+                        "finished_at": done,
+                        "error": f"WorkerLost: the worker died {MAX_REQUEUES + 1} times while running this job",
+                    }
+                )
                 log(f"[work] {st['id']}: failed, worker lost too many times")
             else:
-                st.update({"status": "queued", "stage": None, "started_at": None, "worker": None,
-                           "requeues": int(st.get("requeues") or 0) + 1})
+                st.update(
+                    {
+                        "status": "queued",
+                        "stage": None,
+                        "started_at": None,
+                        "worker": None,
+                        "requeues": int(st.get("requeues") or 0) + 1,
+                    }
+                )
                 log(f"[work] {st['id']}: worker is gone, requeued")
             _write_status(d, st)
             n += 1
@@ -466,8 +532,19 @@ def cancel_job(jobs_root: Path, job_id: str) -> str | None:
 
 # ---- one job --------------------------------------------------------------------------------------------------
 
-def process(job_dir: Path, status: dict, out_dir: Path, episodes: int = 8, families=DEFAULT_FAMILIES,
-            people: int = 1, res: int = 128, seed: int = 0, log=print, limits: Limits | None = None) -> dict:
+
+def process(
+    job_dir: Path,
+    status: dict,
+    out_dir: Path,
+    episodes: int = 8,
+    families=DEFAULT_FAMILIES,
+    people: int = 1,
+    res: int = 128,
+    seed: int = 0,
+    log=print,
+    limits: Limits | None = None,
+) -> dict:
     """Run every stage for one claimed job, one attempt. Returns the status the attempt left: ``done``, ``failed``,
     ``cancelled``, or ``queued`` again for a retry (``requeue_failed``); never raises (except Ctrl-C and SystemExit)."""
     out_dir, job_dir = Path(out_dir), Path(job_dir)
@@ -516,14 +593,30 @@ def process(job_dir: Path, status: dict, out_dir: Path, episodes: int = 8, famil
         _stage(job_dir, status, "sim", log, meter)
         from arrival.sim.collect import collect
 
-        res_ = collect(twin, list(families), episodes, out_dir, people=people, res=res, seed=seed,
-                       log=progress_log(job_dir, status, episodes, log))
+        res_ = collect(
+            twin,
+            list(families),
+            episodes,
+            out_dir,
+            people=people,
+            res=res,
+            seed=seed,
+            log=progress_log(job_dir, status, episodes, log),
+        )
         r = res_["report_data"]
-        status.update({"dataset_dir": str(res_["dataset"]), "attempts": r["attempts"], "successes": r["successes"],
-                       "skipped": r["skipped"]})
+        status.update(
+            {
+                "dataset_dir": str(res_["dataset"]),
+                "attempts": r["attempts"],
+                "successes": r["successes"],
+                "skipped": r["skipped"],
+            }
+        )
         if r["skipped"]:
-            log(f"[work] {status['id']}: skipped {r['skipped']} ({r['skipped_unreachable']} unreachable, "
-                f"{r['skipped_error']} errors); the dataset holds only episodes that passed the physics check")
+            log(
+                f"[work] {status['id']}: skipped {r['skipped']} ({r['skipped_unreachable']} unreachable, "
+                f"{r['skipped_error']} errors); the dataset holds only episodes that passed the physics check"
+            )
         if r["attempts"] == 0:  # nothing could even be set up: a layout problem the uploader can act on
             why = [x["reason"] for x in r["skip_reasons"]][:3]
             raise UnsupportedLayout("no task can run in this room" + (": " + "; ".join(why) if why else ""), why)
@@ -550,9 +643,12 @@ def process(job_dir: Path, status: dict, out_dir: Path, episodes: int = 8, famil
     except BaseException as e:  # noqa: BLE001 - any stage failure is the job's failure, not the worker's
         status.update({"status": "failed", "error": f"{type(e).__name__}: {e}" if str(e) else type(e).__name__})
         retry = retryable(e)
-        if isinstance(e, UnsupportedLayout):  # a typed status, not a traceback: the room, not the worker, is the problem
-            status.update({"error": f"unsupported layout: {e}", "error_kind": "unsupported_layout",
-                           "error_reasons": e.reasons})
+        if isinstance(
+            e, UnsupportedLayout
+        ):  # a typed status, not a traceback: the room, not the worker, is the problem
+            status.update(
+                {"error": f"unsupported layout: {e}", "error_kind": "unsupported_layout", "error_reasons": e.reasons}
+            )
             log(f"[work] {status['id']}: unsupported layout at {status.get('stage')}: {e}")
         elif not isinstance(e, Exception):  # Ctrl-C or SystemExit: record it so the job is not left running, then stop
             status["error"] = f"interrupted: {status['error']}"
@@ -687,7 +783,7 @@ def tree_rss(pid: int) -> int | None:
                     raw = Path("/proc", d, "stat").read_text()
                 except OSError:
                     continue  # exited between the listing and the read
-                f = raw[raw.rindex(")") + 2:].split()  # fields after "pid (comm) ": state, ppid, ... rss is the 22nd
+                f = raw[raw.rindex(")") + 2 :].split()  # fields after "pid (comm) ": state, ppid, ... rss is the 22nd
                 rows[int(d)] = (int(f[1]), int(f[21]) * page)
         else:
             ps = subprocess.run(["ps", "-A", "-o", "pid=,ppid=,rss="], capture_output=True, text=True, timeout=5)
@@ -709,18 +805,26 @@ def tree_rss(pid: int) -> int | None:
     return total
 
 
-def run_isolated(job_dir: Path, status: dict, out_dir: Path, limits: Limits, log=print, child_cmd=None,
-                 tick: float = 0.1, **kw) -> dict:
+def run_isolated(
+    job_dir: Path, status: dict, out_dir: Path, limits: Limits, log=print, child_cmd=None, tick: float = 0.1, **kw
+) -> dict:
     """Run ``process`` in a child process and enforce ``limits.max_job_seconds`` and ``limits.max_job_bytes`` (resident
     memory of the child and everything it starts, read every MEM_TICK s) by killing it. The child writes its
     own status, retry included; this function only steps in when the child timed out, was cancelled, or died without
     finishing (killed by the OS, segfault), and then records the failure with the stage it reached. A child that died
     is retried like any other failure that may pass; a timeout is not, since the limit is what one job may cost."""
     job_dir, out_dir = Path(job_dir), Path(out_dir)
-    payload = {k: (list(v) if k == "families" else v) for k, v in kw.items()
-               if k in ("episodes", "families", "people", "res", "seed")}
+    payload = {
+        k: (list(v) if k == "families" else v)
+        for k, v in kw.items()
+        if k in ("episodes", "families", "people", "res", "seed")
+    }
     payload["limits"] = asdict(limits)
-    cmd = list(child_cmd or [sys.executable, "-m", "arrival.jobs.child"]) + [str(job_dir), str(out_dir), json.dumps(payload)]
+    cmd = list(child_cmd or [sys.executable, "-m", "arrival.jobs.child"]) + [
+        str(job_dir),
+        str(out_dir),
+        json.dumps(payload),
+    ]
     t0 = time.monotonic()
     deadline = t0 + limits.max_job_seconds if limits.max_job_seconds else None
     proc = subprocess.Popen(cmd)
@@ -755,18 +859,33 @@ def run_isolated(job_dir: Path, status: dict, out_dir: Path, limits: Limits, log
     done = (final.get("usage") or {}).get("stage_seconds") or {}
     stage = final.get("stage")
     if why == "timeout":
-        final.update({"status": "failed", "error": f"TimeoutError: job exceeded the {limits.max_job_seconds:g} s "
-                                                    f"wall-clock limit during stage {stage!r}"})
+        final.update(
+            {
+                "status": "failed",
+                "error": f"TimeoutError: job exceeded the {limits.max_job_seconds:g} s "
+                f"wall-clock limit during stage {stage!r}",
+            }
+        )
     elif why == "memory":  # like a timeout, not retried: the limit is what one job may use
-        final.update({"status": "failed", "error": f"MemoryLimitError: the job used {rss / MB:.1f} MB resident, over "
-                                                    f"the {limits.max_job_bytes / MB:g} MB limit (ARRIVAL_MAX_JOB_MB), "
-                                                    f"during stage {stage!r}"})
+        final.update(
+            {
+                "status": "failed",
+                "error": f"MemoryLimitError: the job used {rss / MB:.1f} MB resident, over "
+                f"the {limits.max_job_bytes / MB:g} MB limit (ARRIVAL_MAX_JOB_MB), "
+                f"during stage {stage!r}",
+            }
+        )
     elif why == "cancel":
         final.update({"status": "cancelled", "error": None})
         _unlink(job_dir / CANCEL)
     elif final.get("status") == "running":
-        final.update({"status": "failed", "error": f"WorkerProcessError: the job's process exited with code "
-                                                    f"{proc.returncode} during stage {stage!r}"})
+        final.update(
+            {
+                "status": "failed",
+                "error": f"WorkerProcessError: the job's process exited with code "
+                f"{proc.returncode} during stage {stage!r}",
+            }
+        )
     if final["status"] == "failed":
         (job_dir / "error.txt").write_text(final["error"] + "\n", encoding="utf-8")
     final["finished_at"] = int(time.time())
@@ -783,8 +902,9 @@ def run_isolated(job_dir: Path, status: dict, out_dir: Path, limits: Limits, log
     return final
 
 
-def run_once(out_dir: Path, limits: Limits | None = None, isolate: bool = False, worker: str | None = None,
-             child_cmd=None, **kw) -> dict | None:
+def run_once(
+    out_dir: Path, limits: Limits | None = None, isolate: bool = False, worker: str | None = None, child_cmd=None, **kw
+) -> dict | None:
     """Claim and process one queued job (one attempt; a failure that may pass leaves it ``queued`` for the next claim).
     None when nothing is queued. With ``isolate`` the job runs in a child process under ``limits.max_job_seconds``;
     otherwise in this process (no timeout)."""
@@ -802,8 +922,16 @@ def run_once(out_dir: Path, limits: Limits | None = None, isolate: bool = False,
         release(job_dir)
 
 
-def work(out_dir: Path, once: bool = False, poll: float = 2.0, log=print, limits: Limits | None = None,
-         isolate: bool | None = None, worker: str | None = None, **kw) -> int:
+def work(
+    out_dir: Path,
+    once: bool = False,
+    poll: float = 2.0,
+    log=print,
+    limits: Limits | None = None,
+    isolate: bool | None = None,
+    worker: str | None = None,
+    **kw,
+) -> int:
     """Poll until Ctrl-C (or one job with ``once``). Returns the number of job attempts run (a retry counts again).
 
     ``limits`` default to ``Limits.from_env()``; sim options above them raise ``LimitError`` before any job is touched.

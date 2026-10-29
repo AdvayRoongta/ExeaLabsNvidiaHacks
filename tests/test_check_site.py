@@ -1,4 +1,5 @@
 """scripts/check_site.py against a --base with no server: one line and exit 1, not one refused connection per path."""
+
 import importlib.util
 import urllib.error
 

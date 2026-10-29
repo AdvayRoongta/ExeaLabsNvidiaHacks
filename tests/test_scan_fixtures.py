@@ -17,14 +17,22 @@ from arrival.sim.tasks import make_tasks  # noqa: E402
 from arrival.twin.compile import compile_twin, is_counter_host, rect_distance, to_world  # noqa: E402
 
 SCANS = "tests/fixtures/scans"
-WALLS = [{"id": "wall_n", "start": [0.0, 0.0], "end": [4.0, 0.0], "height": 2.4, "thickness": 0.02},
-         {"id": "wall_e", "start": [4.0, 0.0], "end": [4.0, 3.0], "height": 2.4, "thickness": 0.02},
-         {"id": "wall_s", "start": [4.0, 3.0], "end": [0.0, 3.0], "height": 2.4, "thickness": 0.02},
-         {"id": "wall_w", "start": [0.0, 3.0], "end": [0.0, 0.0], "height": 2.4, "thickness": 0.02}]
+WALLS = [
+    {"id": "wall_n", "start": [0.0, 0.0], "end": [4.0, 0.0], "height": 2.4, "thickness": 0.02},
+    {"id": "wall_e", "start": [4.0, 0.0], "end": [4.0, 3.0], "height": 2.4, "thickness": 0.02},
+    {"id": "wall_s", "start": [4.0, 3.0], "end": [0.0, 3.0], "height": 2.4, "thickness": 0.02},
+    {"id": "wall_w", "start": [0.0, 3.0], "end": [0.0, 0.0], "height": 2.4, "thickness": 0.02},
+]
 
 
 def _bundle(fixtures: list[dict]) -> dict:
-    return {"room_id": "one_fixture", "geometry_source": "roomplan", "walls": WALLS, "objects": [], "fixtures": fixtures}
+    return {
+        "room_id": "one_fixture",
+        "geometry_source": "roomplan",
+        "walls": WALLS,
+        "objects": [],
+        "fixtures": fixtures,
+    }
 
 
 def _fixture(fid: str, category: str, size, position, yaw=0.0) -> dict:
@@ -39,8 +47,11 @@ def _model(twin: dict):
 
 
 def _solid_geoms(m, prefix: str) -> list[str]:
-    return [m.geom(i).name for i in range(m.ngeom)
-            if m.geom(i).name.startswith(prefix) and (m.geom_contype[i] or m.geom_conaffinity[i])]
+    return [
+        m.geom(i).name
+        for i in range(m.ngeom)
+        if m.geom(i).name.startswith(prefix) and (m.geom_contype[i] or m.geom_conaffinity[i])
+    ]
 
 
 @pytest.mark.parametrize("category", sorted(FIXTURE_MAP))
@@ -93,7 +104,9 @@ def test_drawer_and_sink_hole_follow_the_run_on_a_west_wall():
 def test_hero_kitchen_builds_as_before(hero_twin):
     m, d = _model(hero_twin)
     names = {m.geom(i).name for i in range(m.ngeom)}
-    assert not any(n.endswith("_box") and not n.startswith(("fridge", "dishwasher", "microwave", "stove")) for n in names)
+    assert not any(
+        n.endswith("_box") and not n.startswith(("fridge", "dishwasher", "microwave", "stove")) for n in names
+    )
     assert not any(n.endswith("_carcass") and n.startswith("sink") for n in names)
     assert m.body(int(m.geom("sink_1_bottom").bodyid[0])).name == "counter_a"
     assert np.allclose(d.geom("sink_1_bottom").xpos[:2], [1.6, 0.4], atol=1e-6)
@@ -135,9 +148,13 @@ def test_corner_cabinet_door_stands_along_its_run_but_the_blocked_drawer_and_out
         corner += [t for t in tasks if t.get("fixture") == "storage_b"]
         pre["rejected"] = pre.get("rejected", 0) + pre_f["rejected"]
         pre.setdefault("reasons", []).extend(pre_f["reasons"])
-    assert {t["family"] for t in corner} == {"open_door"}  # close_door is not offered at the corner: see reach.WIDE_FAMILIES
+    assert {t["family"] for t in corner} == {
+        "open_door"
+    }  # close_door is not offered at the corner: see reach.WIDE_FAMILIES
     assert all(t["base_shift"] == [0.25, 0.0] for t in corner)
-    assert pre["rejected"] == 3  # open_drawer, close_drawer (the sink run is on the stand spot) and close_door (not offered at the corner)
+    assert (
+        pre["rejected"] == 3
+    )  # open_drawer, close_drawer (the sink run is on the stand spot) and close_door (not offered at the corner)
     for fam in ("open_door",):
         t = finish_task(next(t for t in corner if t["family"] == fam))
         ep = run_episode(SimEnv(twin, t, res=32), ScriptedExpert(), t)

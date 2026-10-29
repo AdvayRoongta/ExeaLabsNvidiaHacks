@@ -37,6 +37,7 @@ class ManifestError(ValueError):
 class Frame:
     """One posed RGB-D frame of a scan: its image files, intrinsics, camera pose in the room frame and its train or
     held-out split."""
+
     id: str
     timestamp: float
     rgb: Path
@@ -51,6 +52,7 @@ class Frame:
 class Manifest:
     """A loaded frames_manifest.json: the room, image sizes, depth unit, the ARKit-world-to-room alignment and the
     frames."""
+
     room_id: str
     root: Path
     rgb_size: tuple[int, int]  # (width, height)
@@ -170,8 +172,13 @@ def load_manifest(directory) -> Manifest:
             if rel is None and key == "confidence":
                 paths[key] = None
                 continue
-            if (not isinstance(rel, str) or not rel or "\x00" in rel  # a NUL makes resolve() raise a bare ValueError
-                    or Path(rel).is_absolute() or ".." in Path(rel).parts):
+            if (
+                not isinstance(rel, str)
+                or not rel
+                or "\x00" in rel  # a NUL makes resolve() raise a bare ValueError
+                or Path(rel).is_absolute()
+                or ".." in Path(rel).parts
+            ):
                 _fail("bad_path", f"frame {fid} {key} must be a relative path inside the bundle")
             if not (root / rel).resolve().is_relative_to(resolved_root):
                 _fail("bad_path", f"frame {fid} {key} resolves outside the bundle")
@@ -179,10 +186,23 @@ def load_manifest(directory) -> Manifest:
                 _fail("missing_file", f"frame {fid} {key} file {rel} does not exist")
             paths[key] = root / rel
         if paths["depth"].suffix.lower() != DEPTH_UNITS[unit]:
-            _fail("depth_unit", f"frame {fid} depth {paths['depth'].name} does not match depth_unit {unit!r} "
-                  f"(expects {DEPTH_UNITS[unit]})")
-        frames.append(Frame(fid, last_t, paths["rgb"], paths["depth"], paths["confidence"],
-                            np.array([[fx, 0, cx], [0, fy, cy], [0, 0, 1.0]]), T, split))
+            _fail(
+                "depth_unit",
+                f"frame {fid} depth {paths['depth'].name} does not match depth_unit {unit!r} "
+                f"(expects {DEPTH_UNITS[unit]})",
+            )
+        frames.append(
+            Frame(
+                fid,
+                last_t,
+                paths["rgb"],
+                paths["depth"],
+                paths["confidence"],
+                np.array([[fx, 0, cx], [0, fy, cy], [0, 0, 1.0]]),
+                T,
+                split,
+            )
+        )
 
     split_ids = raw.get("splits")
     if split_ids is not None and not isinstance(split_ids, dict):
@@ -201,8 +221,11 @@ def load_manifest(directory) -> Manifest:
             expected = {f.id for f in frames if f.split == name}
             listed = set(split_ids[name])
             if listed != expected:
-                _fail("split", f"splits.{name} disagrees with frame entries: missing {sorted(expected - listed)}, "
-                      f"unknown or mislabelled {sorted(listed - expected)}")
+                _fail(
+                    "split",
+                    f"splits.{name} disagrees with frame entries: missing {sorted(expected - listed)}, "
+                    f"unknown or mislabelled {sorted(listed - expected)}",
+                )
     return Manifest(room_id, root, rgb_size, depth_size, unit, world, frames)
 
 
@@ -303,13 +326,26 @@ def write_synthetic_bundle(directory, depth_unit: str = "m", size=(64, 48)) -> P
         else:
             Image.fromarray(np.round(depth * 1000).astype(np.uint16)).save(root / "depth" / f"{name}{ext}")
         Image.new("RGB", (w, h), (120 + 60 * i, 130, 140)).save(root / "rgb" / f"{name}.png")
-        frames.append({"id": name, "timestamp": 1.0 + 0.5 * i, "rgb": f"rgb/{name}.png",
-                       "depth": f"depth/{name}{ext}",
-                       "intrinsics": {"fx": fx, "fy": fy, "cx": w / 2, "cy": h / 2},
-                       "camera_to_room": T.ravel().tolist(), "split": "train" if i == 0 else "heldout"})
-    manifest = {"schema_version": SCHEMA_VERSION, "room_id": "synthetic_room",
-                "axes": {"camera": CAMERA_AXES, "room": ROOM_AXES},
-                "arkit_world_to_room": np.eye(4).ravel().tolist(),
-                "rgb_size": [w, h], "depth_size": [w, h], "depth_unit": depth_unit, "frames": frames}
+        frames.append(
+            {
+                "id": name,
+                "timestamp": 1.0 + 0.5 * i,
+                "rgb": f"rgb/{name}.png",
+                "depth": f"depth/{name}{ext}",
+                "intrinsics": {"fx": fx, "fy": fy, "cx": w / 2, "cy": h / 2},
+                "camera_to_room": T.ravel().tolist(),
+                "split": "train" if i == 0 else "heldout",
+            }
+        )
+    manifest = {
+        "schema_version": SCHEMA_VERSION,
+        "room_id": "synthetic_room",
+        "axes": {"camera": CAMERA_AXES, "room": ROOM_AXES},
+        "arkit_world_to_room": np.eye(4).ravel().tolist(),
+        "rgb_size": [w, h],
+        "depth_size": [w, h],
+        "depth_unit": depth_unit,
+        "frames": frames,
+    }
     (root / MANIFEST_NAME).write_text(json.dumps(manifest, indent=1), encoding="utf-8")
     return root

@@ -2,6 +2,7 @@
 model names each wall's box and each object's geom after its id, so a repeated id failed the model build of every
 task, which the upload worker reported as an unsupported layout. A wall with no id passed validation and the job then
 failed with KeyError: 'id' when the twin was written, which the worker retried as a machine fault."""
+
 import json
 
 import pytest
@@ -45,5 +46,9 @@ def test_a_wall_may_share_an_id_with_a_fixture():
     """A fixture is a MuJoCo body and a wall a geom, so those names do not clash."""
     data = _hero(lambda d: d["walls"][0].update(id=d["fixtures"][0]["id"]))
     assert scan_bundle.validate(data)["walls"][0]["id"] == "counter_a"
-    assert [w["id"] for w in scan_bundle.validate(_hero())["walls"]] == ["wall_north", "wall_east", "wall_south",
-                                                                         "wall_west"]
+    assert [w["id"] for w in scan_bundle.validate(_hero())["walls"]] == [
+        "wall_north",
+        "wall_east",
+        "wall_south",
+        "wall_west",
+    ]

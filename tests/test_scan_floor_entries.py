@@ -1,6 +1,7 @@
 """A scan.json `floors` entry that is not {id, corners: [[x, y], ...]} is refused with a ScanBundleError, like every
 other malformed list in a scan. It used to escape as an AttributeError or TypeError, which the upload worker treats
 as a machine fault and retries."""
+
 import json
 
 import pytest

@@ -40,8 +40,11 @@ def _footprint_box(f: dict, c: dict) -> tuple[float, float, float, float]:
     hx, hy = f["size"][0] / 2, f["size"][1] / 2
     yaw = f.get("yaw", 0.0)
     co, si = math.cos(yaw), math.sin(yaw)
-    pts = [to_local((f["position"][0] + co * dx - si * dy, f["position"][1] + si * dx + co * dy), c)
-           for dx in (-hx, hx) for dy in (-hy, hy)]
+    pts = [
+        to_local((f["position"][0] + co * dx - si * dy, f["position"][1] + si * dx + co * dy), c)
+        for dx in (-hx, hx)
+        for dy in (-hy, hy)
+    ]
     return min(p[0] for p in pts), max(p[0] for p in pts), min(p[1] for p in pts), max(p[1] for p in pts)
 
 
@@ -198,8 +201,13 @@ def fridge_door_frame(f: dict) -> dict:
     the door from these numbers, so they live in one place."""
     sx, sy, h = f["size"]
     m = fridge_mirror(f)
-    return {"hinge": (-m * sx / 2, sy / 2 - 0.03), "length": sx, "handle": (m * (sx - 0.07), 0.09, h * 0.57),
-            "front": sy / 2, "mirror": m}
+    return {
+        "hinge": (-m * sx / 2, sy / 2 - 0.03),
+        "length": sx,
+        "handle": (m * (sx - 0.07), 0.09, h * 0.57),
+        "front": sy / 2,
+        "mirror": m,
+    }
 
 
 def point_segment_distance(p, a, b) -> float:

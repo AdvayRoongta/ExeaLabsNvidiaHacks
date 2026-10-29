@@ -20,9 +20,11 @@ from arrival.scan.bundle import load_room  # noqa: E402
 from arrival.twin.compile import compile_twin  # noqa: E402
 
 W, H = 64, 48
-POSES = {"train_0": ((3.6, 0.5, 1.5), (2.0, 1.5, 0.8)),
-         "held_0": ((3.6, 2.5, 1.5), (2.0, 1.5, 0.8)),
-         "held_1": ((0.5, 2.5, 1.5), (2.0, 1.5, 0.8))}
+POSES = {
+    "train_0": ((3.6, 0.5, 1.5), (2.0, 1.5, 0.8)),
+    "held_0": ((3.6, 2.5, 1.5), (2.0, 1.5, 0.8)),
+    "held_1": ((0.5, 2.5, 1.5), (2.0, 1.5, 0.8)),
+}
 
 
 @pytest.fixture(scope="module")
@@ -50,8 +52,8 @@ def _write_scan(root, twin, size=(W, H), depth_div=1, depth_unit="m", bad_region
             depth[:, :8] += 5.0
             conf[:, :8] = 0
         if depth_div > 1:
-            depth = depth[depth_div // 2::depth_div, depth_div // 2::depth_div]
-            conf = conf[depth_div // 2::depth_div, depth_div // 2::depth_div]
+            depth = depth[depth_div // 2 :: depth_div, depth_div // 2 :: depth_div]
+            conf = conf[depth_div // 2 :: depth_div, depth_div // 2 :: depth_div]
         Image.fromarray(rgb).save(root / "rgb" / f"{fid}.png")
         if depth_unit == "m":
             np.save(root / "depth" / f"{fid}.npy", depth.astype(np.float32))
@@ -61,15 +63,28 @@ def _write_scan(root, twin, size=(W, H), depth_div=1, depth_unit="m", bad_region
             dpath = f"depth/{fid}.png"
         Image.fromarray(conf).save(root / "conf" / f"{fid}.png")
         T_arkit = T_cv @ realism.ARKIT_TO_CV  # the camera axes the manifest declares
-        frames.append({"id": fid, "timestamp": 1.0 + i, "rgb": f"rgb/{fid}.png", "depth": dpath,
-                       "confidence": f"conf/{fid}.png",
-                       "intrinsics": {"fx": fx, "fy": fx, "cx": w / 2, "cy": h / 2},
-                       "camera_to_room": T_arkit.ravel().tolist(),
-                       "split": "train" if fid.startswith("train") else "heldout"})
-    manifest = {"schema_version": rgbd.SCHEMA_VERSION, "room_id": "hero_kitchen",
-                "axes": {"camera": rgbd.CAMERA_AXES, "room": rgbd.ROOM_AXES},
-                "arkit_world_to_room": np.eye(4).ravel().tolist(), "rgb_size": [w, h],
-                "depth_size": [w // depth_div, h // depth_div], "depth_unit": depth_unit, "frames": frames}
+        frames.append(
+            {
+                "id": fid,
+                "timestamp": 1.0 + i,
+                "rgb": f"rgb/{fid}.png",
+                "depth": dpath,
+                "confidence": f"conf/{fid}.png",
+                "intrinsics": {"fx": fx, "fy": fx, "cx": w / 2, "cy": h / 2},
+                "camera_to_room": T_arkit.ravel().tolist(),
+                "split": "train" if fid.startswith("train") else "heldout",
+            }
+        )
+    manifest = {
+        "schema_version": rgbd.SCHEMA_VERSION,
+        "room_id": "hero_kitchen",
+        "axes": {"camera": rgbd.CAMERA_AXES, "room": rgbd.ROOM_AXES},
+        "arkit_world_to_room": np.eye(4).ravel().tolist(),
+        "rgb_size": [w, h],
+        "depth_size": [w // depth_div, h // depth_div],
+        "depth_unit": depth_unit,
+        "frames": frames,
+    }
     if mutate:
         mutate(manifest)
     (root / rgbd.MANIFEST_NAME).write_text(json.dumps(manifest))
@@ -102,19 +117,25 @@ def test_twin_frames_score_near_zero_and_only_heldout_counts(scan_dir, tmp_path,
     assert "texture" in rep["scope"] and rep["masks"]["robot"]
 
 
-@pytest.mark.parametrize("transform", [np.eye(3), np.full((4, 4), np.nan),
-                                       np.diag([1, 1, 1, 2]), [["bad"]] * 4])
+@pytest.mark.parametrize("transform", [np.eye(3), np.full((4, 4), np.nan), np.diag([1, 1, 1, 2]), [["bad"]] * 4])
 def test_invalid_camera_transform_is_rejected_before_scoring(tmp_path, transform):
     with pytest.raises(realism.RealismError, match="camera_transform"):
         realism.run_realism(tmp_path / "missing_scan", tmp_path / "out", camera_transform=transform)
     assert not (tmp_path / "out").exists()
 
 
-@pytest.mark.parametrize("option,value", [
-    ("max_side", True), ("max_frames", 1.5), ("png_frames", -1),
-    ("png_frames", True), ("min_confidence", -1), ("min_confidence", 3),
-    ("min_confidence", True),
-])
+@pytest.mark.parametrize(
+    "option,value",
+    [
+        ("max_side", True),
+        ("max_frames", 1.5),
+        ("png_frames", -1),
+        ("png_frames", True),
+        ("min_confidence", -1),
+        ("min_confidence", 3),
+        ("min_confidence", True),
+    ],
+)
 def test_invalid_realism_controls_rejected_before_loading_scan(tmp_path, option, value):
     with pytest.raises(realism.RealismError):
         realism.run_realism(tmp_path / "missing_scan", tmp_path / "out", **{option: value})
@@ -173,7 +194,9 @@ def test_downscaled_frames_with_half_resolution_depth(twin, tmp_path):
     code, rep = _run(scan, tmp_path, "--max-side", str(W))
     assert code == 0
     assert rep["frames"]["working_size_hw"] == [H, W]
-    assert rep["realism"]["depth_l1_m"] < 0.25 and rep["control"]["realism"]["depth_l1_m"] > rep["realism"]["depth_l1_m"]
+    assert (
+        rep["realism"]["depth_l1_m"] < 0.25 and rep["control"]["realism"]["depth_l1_m"] > rep["realism"]["depth_l1_m"]
+    )
 
 
 def test_millimetre_png_depth(twin, tmp_path):
@@ -245,8 +268,15 @@ def test_bad_twin_json_is_a_readable_error(scan_dir, tmp_path, capsys, body):
     assert code == 1 and rep is None and "--twin" in capsys.readouterr().err
 
 
-@pytest.mark.parametrize("name,body", [("rgb/held_0.png", b"not a png"), ("depth/held_0.npy", b"junk"),
-                                       ("conf/held_0.png", b"junk"), ("depth/held_0.npy", None)])
+@pytest.mark.parametrize(
+    "name,body",
+    [
+        ("rgb/held_0.png", b"not a png"),
+        ("depth/held_0.npy", b"junk"),
+        ("conf/held_0.png", b"junk"),
+        ("depth/held_0.npy", None),
+    ],
+)
 def test_unreadable_frame_file_is_a_readable_error(twin, tmp_path, capsys, name, body):
     scan = _write_scan(tmp_path / "s" / "hero_kitchen", twin)
     if body is None:  # metric depth saved as float64

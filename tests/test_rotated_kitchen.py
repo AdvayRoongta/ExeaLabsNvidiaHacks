@@ -84,11 +84,21 @@ def test_walkers_get_a_strip_in_front_of_each_run(twin, fixture):
     assert all(0.0 < x < 4.5 and 0.0 < y < 3.5 for x, y in env.people_xy)
 
 
-@pytest.mark.parametrize("family,fixture,obj", [("counter_to_sink", "counter_w", "mug_1"), ("open_drawer", "counter_e", None),
-                                                ("open_door", "counter_s", None), ("put_in_drawer", "counter_w", "mug_1")])
+@pytest.mark.parametrize(
+    "family,fixture,obj",
+    [
+        ("counter_to_sink", "counter_w", "mug_1"),
+        ("open_drawer", "counter_e", None),
+        ("open_door", "counter_s", None),
+        ("put_in_drawer", "counter_w", "mug_1"),
+    ],
+)
 def test_expert_succeeds_with_people_on_a_rotated_run(twin, family, fixture, obj):
-    t = next(t for t in _tasks(twin, [family], 8, people=2)
-             if (t.get("fixture") or t["source"]) == fixture and (obj is None or t["object_id"] == obj))
+    t = next(
+        t
+        for t in _tasks(twin, [family], 8, people=2)
+        if (t.get("fixture") or t["source"]) == fixture and (obj is None or t["object_id"] == obj)
+    )
     env = SimEnv(twin, t, res=32)
     ep = run_episode(env, ScriptedExpert(), t)
     assert ep["success"] and not ep["safety"]["human_contact"], (t["task_id"], ep["detail"])
@@ -105,7 +115,9 @@ def test_closed_pads_squeeze_a_bowl_wall_and_a_plate_rim(twin):
     for j in ("finger_l", "finger_r"):
         d.joint(j).qpos[0] = 0.0
     mujoco.mj_forward(m, d)
-    pads = [i for i in range(m.ngeom) if m.body(m.geom_bodyid[i]).name in ("finger_l", "finger_r") and m.geom_contype[i]]
+    pads = [
+        i for i in range(m.ngeom) if m.body(m.geom_bodyid[i]).name in ("finger_l", "finger_r") and m.geom_contype[i]
+    ]
     a, b = d.geom_xpos[pads[0]], d.geom_xpos[pads[1]]
     axis = (b - a) / np.linalg.norm(b - a)
     half = [float(np.abs(d.geom_xmat[i].reshape(3, 3).T @ axis) @ m.geom_size[i]) for i in pads]

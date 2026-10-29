@@ -20,8 +20,15 @@ class Store:
         return json.dumps(self.value).encode()
 
 
-@pytest.mark.parametrize("value", [None, [], {"run_id": "other", "shard": 0, "shards": 2, "attempts": []},
-                                   {"run_id": "run", "shard": 0, "shards": 2, "attempts": [None]}])
+@pytest.mark.parametrize(
+    "value",
+    [
+        None,
+        [],
+        {"run_id": "other", "shard": 0, "shards": 2, "attempts": []},
+        {"run_id": "run", "shard": 0, "shards": 2, "attempts": [None]},
+    ],
+)
 def test_status_recorder_rejects_malformed_saved_record(value):
     with pytest.raises(ShardError, match="invalid status record"):
         StatusRecorder(Store(value))._record(CFG, 0)

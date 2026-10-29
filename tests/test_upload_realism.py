@@ -33,14 +33,29 @@ def capture(root, twin, room_id, room_transform=None, frame_id="heldout"):
     camera = pose @ np.diag([1.0, -1.0, -1.0, 1.0])
     if room_transform is not None:
         camera = room_transform @ camera
-    frames = [{"id": name, "timestamp": float(i), "rgb": "reference.png", "depth": "depth.npy",
-               "confidence": "confidence.png", "intrinsics": {"fx": 60, "fy": 60, "cx": 32, "cy": 24},
-               "camera_to_room": camera.ravel().tolist(), "split": split}
-              for i, (name, split) in enumerate((("train", "train"), (frame_id, "heldout")))]
-    manifest = {"schema_version": 1, "room_id": room_id,
-                "axes": {"camera": rgbd.CAMERA_AXES, "room": rgbd.ROOM_AXES},
-                "arkit_world_to_room": np.eye(4).ravel().tolist(),
-                "rgb_size": [64, 48], "depth_size": [64, 48], "depth_unit": "m", "frames": frames}
+    frames = [
+        {
+            "id": name,
+            "timestamp": float(i),
+            "rgb": "reference.png",
+            "depth": "depth.npy",
+            "confidence": "confidence.png",
+            "intrinsics": {"fx": 60, "fy": 60, "cx": 32, "cy": 24},
+            "camera_to_room": camera.ravel().tolist(),
+            "split": split,
+        }
+        for i, (name, split) in enumerate((("train", "train"), (frame_id, "heldout")))
+    ]
+    manifest = {
+        "schema_version": 1,
+        "room_id": room_id,
+        "axes": {"camera": rgbd.CAMERA_AXES, "room": rgbd.ROOM_AXES},
+        "arkit_world_to_room": np.eye(4).ravel().tolist(),
+        "rgb_size": [64, 48],
+        "depth_size": [64, 48],
+        "depth_unit": "m",
+        "frames": frames,
+    }
     (root / rgbd.MANIFEST_NAME).write_text(json.dumps(manifest), encoding="utf-8")
     return manifest
 
@@ -76,11 +91,12 @@ def upload(srv, scan, frames):
     boundary = "arrival-realism-test"
     body = b""
     for field, name, contents in (("scan", "kitchen.json", scan), ("frames", "frames.zip", archive.getvalue())):
-        body += (f"--{boundary}\r\nContent-Disposition: form-data; name=\"{field}\"; filename=\"{name}\"\r\n\r\n").encode()
+        body += (f'--{boundary}\r\nContent-Disposition: form-data; name="{field}"; filename="{name}"\r\n\r\n').encode()
         body += contents + b"\r\n"
     body += f"--{boundary}--\r\n".encode()
-    code, payload, headers = request(srv, "/jobs", "POST", body,
-                                     {"Content-Type": f"multipart/form-data; boundary={boundary}"})
+    code, payload, headers = request(
+        srv, "/jobs", "POST", body, {"Content-Type": f"multipart/form-data; boundary={boundary}"}
+    )
     assert code == 202, payload
     return json.loads(payload), {"Cookie": headers["Set-Cookie"].split(";")[0]}
 
@@ -113,7 +129,7 @@ def test_upload_worker_comparison_and_private_preview(server, tmp_path, hero_twi
     assert request(srv, base + "/preview/extra", headers=owner)[0] == 404
     job_dir = out / "jobs" / job["id"]
     assert not (job_dir / "outside.png").exists()
-    report_path, = (job_dir / "realism" / "eval").glob("*.json")
+    (report_path,) = (job_dir / "realism" / "eval").glob("*.json")
     raw = json.loads(report_path.read_text(encoding="utf-8"))
     assert raw["frames"]["scored"] == ["../outside"] and raw["frames"]["train_excluded"] == 1
 

@@ -15,8 +15,11 @@ def test_notes_template_passes_validate_scan_dir(tmp_path):
     template = re.search(r"```markdown\n(.*?)```", DOC, re.S)
     assert template, "SCANNING.md has no ```markdown notes.md template"
     (tmp_path / "notes.md").write_text(template.group(1), encoding="utf-8")
-    values = {k: m.group(1) for k in FIELDS if k.endswith("_m")
-              and (m := re.search(rf"- {re.escape(FIELDS[k])}: ([0-9.]+)", template.group(1)))}
+    values = {
+        k: m.group(1)
+        for k in FIELDS
+        if k.endswith("_m") and (m := re.search(rf"- {re.escape(FIELDS[k])}: ([0-9.]+)", template.group(1)))
+    }
     (tmp_path / "measurements.json").write_text(json.dumps({k: float(v) for k, v in values.items()}), encoding="utf-8")
     problems = [p for p in validate_scan_dir(tmp_path) if "notes.md" in p or "measurements.json" in p]
     assert problems == []

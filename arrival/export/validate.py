@@ -13,12 +13,26 @@ import pyarrow.parquet as pq
 
 from arrival.export.lerobot import read_jsonl
 
-META = ("info.json", "tasks.jsonl", "episodes.jsonl", "episodes_stats.jsonl", "stats.json", "modality.json", "embodiment.json")
+META = (
+    "info.json",
+    "tasks.jsonl",
+    "episodes.jsonl",
+    "episodes_stats.jsonl",
+    "stats.json",
+    "modality.json",
+    "embodiment.json",
+)
 ROW_KEYS = {"episodes.jsonl": ("episode_index", "length"), "tasks.jsonl": ("task_index", "task")}
 DTYPES = {
-    "observation.state": pa.list_(pa.float32()), "action": pa.list_(pa.float32()), "timestamp": pa.float32(),
-    "annotation.human.task_description": pa.int64(), "task_index": pa.int64(), "episode_index": pa.int64(),
-    "index": pa.int64(), "next.reward": pa.float32(), "next.done": pa.bool_(),
+    "observation.state": pa.list_(pa.float32()),
+    "action": pa.list_(pa.float32()),
+    "timestamp": pa.float32(),
+    "annotation.human.task_description": pa.int64(),
+    "task_index": pa.int64(),
+    "episode_index": pa.int64(),
+    "index": pa.int64(),
+    "next.reward": pa.float32(),
+    "next.done": pa.bool_(),
 }
 TS_TOL = 1e-4  # seconds; LeRobot's timestamp sync check uses the same tolerance
 VIDEO_SAMPLE = 3  # mp4s fully decoded (first, last, middle); the rest are existence-checked
@@ -43,9 +57,11 @@ def _check_slices(modality: dict, features: dict, errors: list[str]) -> None:
             errors.append(f"modality.json has no {group} slices")
             continue
         dim = (features.get(feat, {}).get("shape") or [None])[0]
-        invalid = [k for k, part in parts.items()
-                   if not isinstance(part, dict) or type(part.get("start")) is not int
-                   or type(part.get("end")) is not int]
+        invalid = [
+            k
+            for k, part in parts.items()
+            if not isinstance(part, dict) or type(part.get("start")) is not int or type(part.get("end")) is not int
+        ]
         if invalid:
             errors.extend(f"modality {group}.{k} slice needs integer start/end bounds" for k in invalid)
             continue
@@ -75,8 +91,9 @@ def _check_video(path: Path, frames: int, shape: list[int]) -> str | None:
     return None if n == frames else f"{path.name}: {n} frames, episodes.jsonl length {frames}"
 
 
-def _episode_errors(name: Path, t: pa.Table, e: dict, cursor: int, s_dim: int, a_dim: int, task_ids: dict,
-                    fps) -> list[str]:
+def _episode_errors(
+    name: Path, t: pa.Table, e: dict, cursor: int, s_dim: int, a_dim: int, task_ids: dict, fps
+) -> list[str]:
     """Value checks on one episode's parquet table (whose schema was already checked): row count, state and action
     widths, the global index, episode and task indexes, next.done, finite values and timestamps at row / fps."""
     errs: list[str] = []
@@ -84,8 +101,9 @@ def _episode_errors(name: Path, t: pa.Table, e: dict, cursor: int, s_dim: int, a
     if t.num_rows != length:
         errs.append(f"{name}: {t.num_rows} rows, episodes.jsonl length {length}")
     # Value checks assume the schema above; malformed columns already have a dtype error.
-    cols = {c: t.column(c).to_pylist() for c, dt in DTYPES.items()
-            if c in t.column_names and t.schema.field(c).type == dt}
+    cols = {
+        c: t.column(c).to_pylist() for c, dt in DTYPES.items() if c in t.column_names and t.schema.field(c).type == dt
+    }
     if any(v is None or len(v) != s_dim for v in cols.get("observation.state", [])):
         errs.append(f"{name}: observation.state length != {s_dim}")
     if any(v is None or len(v) != a_dim for v in cols.get("action", [])):
@@ -105,7 +123,11 @@ def _episode_errors(name: Path, t: pa.Table, e: dict, cursor: int, s_dim: int, a
         errs.append(f"{name}: next.done must be true on the last row only")
     for c in ("observation.state", "action"):
         v = cols.get(c)
-        if v and all(r is not None and len(r) == len(v[0]) for r in v) and not np.isfinite(np.asarray(v, dtype=np.float64)).all():
+        if (
+            v
+            and all(r is not None and len(r) == len(v[0]) for r in v)
+            and not np.isfinite(np.asarray(v, dtype=np.float64)).all()
+        ):
             errs.append(f"{name}: {c} has NaN or inf")
     ts = np.asarray(cols.get("timestamp", []), dtype=np.float64)
     if ts.size and not np.isfinite(ts).all():
@@ -114,8 +136,7 @@ def _episode_errors(name: Path, t: pa.Table, e: dict, cursor: int, s_dim: int, a
         off = np.abs(ts - np.arange(ts.size) / fps)
         if off.max() > TS_TOL:
             k = int(np.argmax(off > TS_TOL))
-            errs.append(f"{name}: timestamp row {k} is {ts[k]:.6f}s, expected {k / fps:.6f}s "
-                          f"(row / fps={fps})")
+            errs.append(f"{name}: timestamp row {k} is {ts[k]:.6f}s, expected {k / fps:.6f}s (row / fps={fps})")
     return errs
 
 
@@ -156,7 +177,9 @@ def validate(root: str | Path) -> list[str]:
         return [f"missing meta/{m}" for m in missing]
     for m in META:  # a run killed while writing meta leaves truncated JSON; report it instead of a traceback
         try:
-            rows = read_jsonl(root / "meta" / m) if m.endswith(".jsonl") else [json.loads((root / "meta" / m).read_text())]
+            rows = (
+                read_jsonl(root / "meta" / m) if m.endswith(".jsonl") else [json.loads((root / "meta" / m).read_text())]
+            )
         except ValueError as e:
             return [f"meta/{m} is not valid JSON ({e})"]
         if err := meta_shape_error(m, rows):
@@ -175,8 +198,10 @@ def validate(root: str | Path) -> list[str]:
     video_feats = {k: v for k, v in features.items() if v.get("dtype") == "video"}
     declared = {v.get("original_key") for v in modality.get("video", {}).values()}
     if declared != set(video_feats):
-        errors.append(f"modality.json video keys {sorted(k for k in declared if k)} != "
-                      f"info.features video keys {sorted(video_feats)}")
+        errors.append(
+            f"modality.json video keys {sorted(k for k in declared if k)} != "
+            f"info.features video keys {sorted(video_feats)}"
+        )
     emb = json.loads((root / "meta" / "embodiment.json").read_text())
     if emb.get("cartesian_sidecar") and not (root / "meta" / emb["cartesian_sidecar"]).is_file():
         errors.append(f"embodiment cartesian_sidecar {emb['cartesian_sidecar']} not found in meta/")
@@ -204,8 +229,10 @@ def validate(root: str | Path) -> list[str]:
     if info.get("total_chunks") != want_chunks:
         errors.append(f"info.total_chunks={info.get('total_chunks')}, expected {want_chunks}")
     data_tpl, video_tpl = info.get("data_path", ""), info.get("video_path") or ""
-    expected = {(root / data_tpl.format(episode_chunk=e["episode_index"] // size,
-                                        episode_index=e["episode_index"])).resolve() for e in episodes}
+    expected = {
+        (root / data_tpl.format(episode_chunk=e["episode_index"] // size, episode_index=e["episode_index"])).resolve()
+        for e in episodes
+    }
     found = {p.resolve() for p in root.glob("data/chunk-*/*.parquet")}
     for p in sorted(found - expected)[:5]:
         errors.append(f"unexpected parquet {p.relative_to(root.resolve())}")

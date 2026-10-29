@@ -44,9 +44,17 @@ def count_active(jobs_root: Path) -> int:
     return n
 
 
-def create_job(jobs_root: Path, filename: str, data: bytes | None = None,
-               src: BinaryIO | None = None, offset: int = 0, length: int = 0, max_queue: int = 0,
-               extra_status: dict | None = None, adopt: dict[str, Path] | None = None) -> dict:
+def create_job(
+    jobs_root: Path,
+    filename: str,
+    data: bytes | None = None,
+    src: BinaryIO | None = None,
+    offset: int = 0,
+    length: int = 0,
+    max_queue: int = 0,
+    extra_status: dict | None = None,
+    adopt: dict[str, Path] | None = None,
+) -> dict:
     """Write ``<jobs_root>/<id>/upload.bin`` (from ``data``, or ``length`` bytes of ``src`` at ``offset``,
     copied in chunks) and ``status.json``; return the status. ``adopt`` maps a name to a prepared folder that is
     moved to ``<id>/<name>`` before the status exists, so a worker never sees a queued job without it;

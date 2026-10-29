@@ -42,8 +42,7 @@ def to_local(xy, fixture: dict) -> tuple[float, float]:
 def to_world(local, fixture: dict) -> tuple[float, float]:
     yaw = float(fixture.get("yaw", 0.0))
     c, s = math.cos(yaw), math.sin(yaw)
-    return (fixture["position"][0] + c * local[0] - s * local[1],
-            fixture["position"][1] + s * local[0] + c * local[1])
+    return (fixture["position"][0] + c * local[0] - s * local[1], fixture["position"][1] + s * local[0] + c * local[1])
 
 
 def rect_distance(xy: list[float], fixture: dict) -> float:
@@ -73,13 +72,16 @@ def _local_x_range(f: dict, frame: dict, half_depth: float | None = None) -> tup
     """Local-X extent of f's footprint in `frame`'s coordinates; None when f lies outside the band |y| < half_depth."""
     hx, hy = f["size"][0] / 2, f["size"][1] / 2
     pts = [to_local(to_world((dx, dy), f), frame) for dx in (-hx, hx) for dy in (-hy, hy)]
-    if half_depth is not None and (max(p[1] for p in pts) <= -half_depth + 1e-6
-                                   or min(p[1] for p in pts) >= half_depth - 1e-6):
+    if half_depth is not None and (
+        max(p[1] for p in pts) <= -half_depth + 1e-6 or min(p[1] for p in pts) >= half_depth - 1e-6
+    ):
         return None
     return min(p[0] for p in pts), max(p[0] for p in pts)
 
 
-def _clip_span(lo: float, hi: float, frame: dict, obstacles: list[dict], keep: tuple[float, float]) -> tuple[float, float]:
+def _clip_span(
+    lo: float, hi: float, frame: dict, obstacles: list[dict], keep: tuple[float, float]
+) -> tuple[float, float]:
     """Shorten a synthesized counter's local-X span [lo, hi] so it stops at a fridge, dishwasher or tall cabinet
     standing in its row, never cutting into `keep`, the span of the fixture it was synthesized for."""
     for o in obstacles:
@@ -104,12 +106,18 @@ def _synth_counters(fixtures: list[dict]) -> list[dict]:
     for f in fixtures:
         if f["source_category"] not in ("sink", "stove"):
             continue
-        if any(rect_distance(f["position"], c) <= SYNTH_RADIUS or _footprint_gap(f, c) <= ADJACENT_GAP
-               for c in hosts):
+        if any(rect_distance(f["position"], c) <= SYNTH_RADIUS or _footprint_gap(f, c) <= ADJACENT_GAP for c in hosts):
             continue  # set into a counter, or built in beside one (a stove between two counters)
         # a sink within 0.3 m of a synthesized counter's end joins its run; a stove must sit on the counter itself
-        held = next((c for c in out if (_footprint_gap(f, c) if f["source_category"] == "sink"
-                                        else rect_distance(f["position"], c)) <= SYNTH_RADIUS), None)
+        held = next(
+            (
+                c
+                for c in out
+                if (_footprint_gap(f, c) if f["source_category"] == "sink" else rect_distance(f["position"], c))
+                <= SYNTH_RADIUS
+            ),
+            None,
+        )
         if held is not None:
             _extend(held, f, obstacles)  # same synthesized run: widen it if f hangs off an end
             continue
@@ -118,14 +126,16 @@ def _synth_counters(fixtures: list[dict]) -> list[dict]:
         half = max(f["size"][0] + 1.2, 1.8) / 2
         keep = _local_x_range(f, f)
         lo, hi = _clip_span(-half, half, f, obstacles, keep)
-        out.append({
-            "id": f"counter_synth_{f['id']}",
-            "type": "counter",
-            "size": [hi - lo, COUNTER_DEPTH, COUNTER_HEIGHT],
-            "position": [*to_world(((lo + hi) / 2, 0.0), f), COUNTER_HEIGHT / 2],
-            "yaw": float(f.get("yaw", 0.0)),  # long axis along the fixture's local X
-            "source_category": "synthesized",
-        })
+        out.append(
+            {
+                "id": f"counter_synth_{f['id']}",
+                "type": "counter",
+                "size": [hi - lo, COUNTER_DEPTH, COUNTER_HEIGHT],
+                "position": [*to_world(((lo + hi) / 2, 0.0), f), COUNTER_HEIGHT / 2],
+                "yaw": float(f.get("yaw", 0.0)),  # long axis along the fixture's local X
+                "source_category": "synthesized",
+            }
+        )
     return out
 
 
@@ -158,8 +168,12 @@ def wall_distance(fixture: dict, walls: list[dict], step: float = 0.05) -> float
 def is_island(fixture: dict, walls: list[dict]) -> bool:
     """A fixture of an island category, within ISLAND_HEIGHT, standing more than ISLAND_CLEARANCE from every wall."""
     lo, hi = ISLAND_HEIGHT
-    return (fixture["source_category"] in ISLAND_CATEGORIES and lo <= fixture["size"][2] <= hi
-            and bool(walls) and wall_distance(fixture, walls) > ISLAND_CLEARANCE)
+    return (
+        fixture["source_category"] in ISLAND_CATEGORIES
+        and lo <= fixture["size"][2] <= hi
+        and bool(walls)
+        and wall_distance(fixture, walls) > ISLAND_CLEARANCE
+    )
 
 
 FRIDGE_FRONT_BAND = 0.9  # m in front of a fridge where its door swings and the robot stands beside the free edge
@@ -191,8 +205,11 @@ def _front_side_room(f: dict, fixtures: list[dict], walls: list[dict], step: flo
             continue
         hx, hy = g["size"][0] / 2, g["size"][1] / 2
         co, si = math.cos(g.get("yaw", 0.0)), math.sin(g.get("yaw", 0.0))
-        pts = [to_local((g["position"][0] + co * dx - si * dy, g["position"][1] + si * dx + co * dy), f)
-               for dx in (-hx, hx) for dy in (-hy, hy)]
+        pts = [
+            to_local((g["position"][0] + co * dx - si * dy, g["position"][1] + si * dx + co * dy), f)
+            for dx in (-hx, hx)
+            for dy in (-hy, hy)
+        ]
         ax0, ax1 = min(p[0] for p in pts), max(p[0] for p in pts)
         ay0, ay1 = min(p[1] for p in pts), max(p[1] for p in pts)
         if ay1 <= sy / 2 or ay0 >= sy / 2 + FRIDGE_FRONT_BAND:
@@ -286,8 +303,14 @@ def place_default_objects(twin: dict, seed: int = 0) -> list[dict]:
     sinks = [f for f in blockers if f["type"] == "sink"]
     if not counters:
         return []
-    counter = min(counters, key=lambda c: (min((rect_distance(s["position"], c) for s in sinks), default=0.0),
-                                           c.get("default_config_name") == "dining", c["id"]))
+    counter = min(
+        counters,
+        key=lambda c: (
+            min((rect_distance(s["position"], c) for s in sinks), default=0.0),
+            c.get("default_config_name") == "dining",
+            c["id"],
+        ),
+    )
     rng = random.Random(seed)
     sx, sy, _ = counter["size"]
     top = counter["position"][2] + counter["size"][2] / 2
@@ -316,9 +339,18 @@ def place_default_objects(twin: dict, seed: int = 0) -> list[dict]:
                 continue
             if any(math.dist([x, y], o["position"][:2]) < half + max(o["size"][:2]) for o in placed):
                 continue
-            placed.append({"id": f"{label}_1", "catalog_id": catalog_id(label), "label": label, "size": list(size),
-                           "position": [round(x, 6), round(y, 6), round(top + size[2] / 2, 6)], "yaw": 0.0,
-                           "placed_by": "place_default_objects", "provenance": "default_synthetic"})
+            placed.append(
+                {
+                    "id": f"{label}_1",
+                    "catalog_id": catalog_id(label),
+                    "label": label,
+                    "size": list(size),
+                    "position": [round(x, 6), round(y, 6), round(top + size[2] / 2, 6)],
+                    "yaw": 0.0,
+                    "placed_by": "place_default_objects",
+                    "provenance": "default_synthetic",
+                }
+            )
             break
     twin["objects"] += placed
     if placed:  # these were put there by us, not measured: say so in the twin's own record
@@ -351,8 +383,13 @@ def _wall_entry(w: dict) -> dict:
     elif a > 1 - 1e-6:
         size = [w["thickness"], length, w["height"]]
     else:  # oblique wall: length along local X, rotated into place
-        return {"name": w["id"], "type": "wall", "size": _r([length, w["thickness"], w["height"]]), "pos": pos,
-                "z_rot": round(angle, 6)}
+        return {
+            "name": w["id"],
+            "type": "wall",
+            "size": _r([length, w["thickness"], w["height"]]),
+            "pos": pos,
+            "z_rot": round(angle, 6),
+        }
     return {"name": w["id"], "type": "wall", "size": _r(size), "pos": pos}
 
 
@@ -370,9 +407,14 @@ def layout_dict(twin: dict) -> dict:
     if corners:  # a scanned floor polygon sets the floor extent; otherwise the wall bounding box does
         xs, ys = [c[0] for c in corners], [c[1] for c in corners]
     if xs:
-        room["floor"] = [{"name": "floor", "type": "floor",
-                          "size": _r([max(xs) - min(xs), max(ys) - min(ys), 0.02]),
-                          "pos": _r([(max(xs) + min(xs)) / 2, (max(ys) + min(ys)) / 2, 0.0])}]
+        room["floor"] = [
+            {
+                "name": "floor",
+                "type": "floor",
+                "size": _r([max(xs) - min(xs), max(ys) - min(ys), 0.02]),
+                "pos": _r([(max(xs) + min(xs)) / 2, (max(ys) + min(ys)) / 2, 0.0]),
+            }
+        ]
     bottom_row = []
     for f in twin["fixtures"]:
         entry = {"name": f["id"], "type": f["type"], "size": _r(f["size"]), "pos": _r(f["position"])}
@@ -385,8 +427,7 @@ def layout_dict(twin: dict) -> dict:
         bottom_row.append(entry)
     return {
         "room": room,
-        "main_group": {"group_origin": [0, 0], "group_pos": [0.0, 0.0], "group_z_rot": 0.0,
-                       "bottom_row": bottom_row},
+        "main_group": {"group_origin": [0, 0], "group_pos": [0.0, 0.0], "group_z_rot": 0.0, "bottom_row": bottom_row},
     }
 
 

@@ -1,4 +1,5 @@
 """Human preview of synchronized views; labels never enter the training videos."""
+
 from pathlib import Path
 
 import numpy as np

@@ -77,24 +77,46 @@ def masked_change(a: np.ndarray, b: np.ndarray, mask: np.ndarray | None) -> floa
     return float(np.abs(na - nb).mean() / 2)
 
 
-def check_frame(orig: np.ndarray, var: np.ndarray, mask: np.ndarray | None = None,
-                edge_min: float = EDGE_CORR_MIN, mask_max: float = MASK_CHANGE_MAX) -> dict:
+def check_frame(
+    orig: np.ndarray,
+    var: np.ndarray,
+    mask: np.ndarray | None = None,
+    edge_min: float = EDGE_CORR_MIN,
+    mask_max: float = MASK_CHANGE_MAX,
+) -> dict:
     """Whether a varied frame may replace the original: same shape and dtype, actually changed, edges still correlated
     at least `edge_min` with the original, and the masked region changed by at most `mask_max` (masked_change).
     Returns ok, the reason when not, and both measurements."""
     if var.shape != orig.shape:
-        return {"ok": False, "reason": f"shape {list(var.shape)} != {list(orig.shape)}",
-                "edge_corr": None, "mask_change": None}
+        return {
+            "ok": False,
+            "reason": f"shape {list(var.shape)} != {list(orig.shape)}",
+            "edge_corr": None,
+            "mask_change": None,
+        }
     if var.dtype != np.uint8:
-        return {"ok": False, "reason": f"expected uint8 RGB frame, got {var.dtype}",
-                "edge_corr": None, "mask_change": None}
-    if mask is not None and (not isinstance(mask, np.ndarray) or mask.dtype != np.bool_
-                             or mask.shape != orig.shape[:2]):
-        return {"ok": False, "reason": "mask must be a boolean array matching frame height and width",
-                "edge_corr": None, "mask_change": None}
+        return {
+            "ok": False,
+            "reason": f"expected uint8 RGB frame, got {var.dtype}",
+            "edge_corr": None,
+            "mask_change": None,
+        }
+    if mask is not None and (
+        not isinstance(mask, np.ndarray) or mask.dtype != np.bool_ or mask.shape != orig.shape[:2]
+    ):
+        return {
+            "ok": False,
+            "reason": "mask must be a boolean array matching frame height and width",
+            "edge_corr": None,
+            "mask_change": None,
+        }
     if np.array_equal(orig, var):
-        return {"ok": False, "reason": "backend returned the original frame unchanged",
-                "edge_corr": 1.0, "mask_change": 0.0 if mask is not None and mask.any() else None}
+        return {
+            "ok": False,
+            "reason": "backend returned the original frame unchanged",
+            "edge_corr": 1.0,
+            "mask_change": 0.0 if mask is not None and mask.any() else None,
+        }
     corr = edge_correlation(orig, var)
     mc = masked_change(orig, var, mask)
     reason = None
@@ -104,23 +126,30 @@ def check_frame(orig: np.ndarray, var: np.ndarray, mask: np.ndarray | None = Non
         reason = f"edge correlation {corr:.3f} < {edge_min}"
     elif mc is not None and mc > mask_max:
         reason = f"masked region changed {mc:.3f} > {mask_max}"
-    return {"ok": reason is None, "reason": reason, "edge_corr": round(corr, 4),
-            "mask_change": None if mc is None else round(mc, 4)}
+    return {
+        "ok": reason is None,
+        "reason": reason,
+        "edge_corr": round(corr, 4),
+        "mask_change": None if mc is None else round(mc, 4),
+    }
 
 
 def _blur3(img: np.ndarray) -> np.ndarray:
     p = np.pad(img, ((1, 1), (1, 1), (0, 0)), mode="edge")
-    return sum(p[dy:dy + img.shape[0], dx:dx + img.shape[1]] for dy in range(3) for dx in range(3)) / 9.0
+    return sum(p[dy : dy + img.shape[0], dx : dx + img.shape[1]] for dy in range(3) for dx in range(3)) / 9.0
 
 
 def _hue_matrix(deg: float) -> np.ndarray:
     c, s = math.cos(math.radians(deg)), math.sin(math.radians(deg))
     k = 1 / 3
     r = math.sqrt(k)
-    return np.array([
-        [c + (1 - c) * k, k * (1 - c) - r * s, k * (1 - c) + r * s],
-        [k * (1 - c) + r * s, c + k * (1 - c), k * (1 - c) - r * s],
-        [k * (1 - c) - r * s, k * (1 - c) + r * s, c + k * (1 - c)]])
+    return np.array(
+        [
+            [c + (1 - c) * k, k * (1 - c) - r * s, k * (1 - c) + r * s],
+            [k * (1 - c) + r * s, c + k * (1 - c), k * (1 - c) - r * s],
+            [k * (1 - c) - r * s, k * (1 - c) + r * s, c + k * (1 - c)],
+        ]
+    )
 
 
 class LocalStub:
@@ -136,9 +165,13 @@ class LocalStub:
     def params(self, episode_index: int, frame_index: int) -> dict:
         """The stub's colour jitter for one frame, seeded by episode and frame so a rerun gives the same variation."""
         rng = np.random.default_rng(_u64("stub", episode_index, frame_index, self.seed))
-        return {"brightness": round(float(rng.uniform(0.8, 1.2)), 4), "contrast": round(float(rng.uniform(0.8, 1.25)), 4),
-                "hue_deg": round(float(rng.uniform(-15, 15)), 3),
-                "color_shift": [round(float(v), 2) for v in rng.uniform(-10, 10, 3)], "blur_mix": 0.4}
+        return {
+            "brightness": round(float(rng.uniform(0.8, 1.2)), 4),
+            "contrast": round(float(rng.uniform(0.8, 1.25)), 4),
+            "hue_deg": round(float(rng.uniform(-15, 15)), 3),
+            "color_shift": [round(float(v), 2) for v in rng.uniform(-10, 10, 3)],
+            "blur_mix": 0.4,
+        }
 
     def __call__(self, frame: np.ndarray, episode_index: int, frame_index: int) -> tuple[np.ndarray, dict]:
         p = self.params(episode_index, frame_index)
@@ -155,8 +188,14 @@ class CosmosClient:
 
     name = "cosmos"
 
-    def __init__(self, url: str | None = None, timeout: float = 30.0, retries: int = 2, backoff: float = 0.5,
-                 prompt: str = "same scene, different lighting and surface appearance"):
+    def __init__(
+        self,
+        url: str | None = None,
+        timeout: float = 30.0,
+        retries: int = 2,
+        backoff: float = 0.5,
+        prompt: str = "same scene, different lighting and surface appearance",
+    ):
         from arrival import config as settings
 
         if type(timeout) not in (int, float) or not math.isfinite(timeout) or timeout <= 0:
@@ -184,18 +223,27 @@ class CosmosClient:
         for attempt in range(self.retries + 1):
             if attempt:
                 time.sleep(self.backoff * attempt)
-            req = urllib.request.Request(self.url, data=buf.getvalue(), method="POST", headers={
-                "Content-Type": "image/png", "X-Prompt": self.prompt})
+            req = urllib.request.Request(
+                self.url,
+                data=buf.getvalue(),
+                method="POST",
+                headers={"Content-Type": "image/png", "X-Prompt": self.prompt},
+            )
             try:
                 with urllib.request.urlopen(req, timeout=self.timeout) as r:
                     body = r.read()
                     self.model = r.headers.get("X-Cosmos-Model", self.model)
                     self.version = r.headers.get("X-Cosmos-Version", self.version)
                 img = np.asarray(imageio.imread(io.BytesIO(body), format="PNG"))
-                if (img.dtype != np.uint8 or img.ndim != 3 or img.shape[2] not in (3, 4)
-                        or img.shape[:2] != frame.shape[:2]):
-                    raise ValueError(f"expected uint8 RGB or RGBA PNG at {frame.shape[:2]}, got "
-                                     f"{img.dtype} {img.shape}")
+                if (
+                    img.dtype != np.uint8
+                    or img.ndim != 3
+                    or img.shape[2] not in (3, 4)
+                    or img.shape[:2] != frame.shape[:2]
+                ):
+                    raise ValueError(
+                        f"expected uint8 RGB or RGBA PNG at {frame.shape[:2]}, got {img.dtype} {img.shape}"
+                    )
                 img = img[..., :3]
                 return img, {"prompt": self.prompt, "attempts": attempt + 1}
             except (urllib.error.URLError, OSError, ValueError) as e:
@@ -210,9 +258,18 @@ def _read_video(path: Path) -> list[np.ndarray]:
         return [np.asarray(f) for f in r]
 
 
-def vary_dataset(src: str | Path, dst: str | Path, backend: str = "local_stub", seed: int = 0,
-                 fraction: float = FRACTION, mask: np.ndarray | None = None, client=None, fps: int | None = None,
-                 edge_min: float = EDGE_CORR_MIN, mask_max: float = MASK_CHANGE_MAX) -> dict:
+def vary_dataset(
+    src: str | Path,
+    dst: str | Path,
+    backend: str = "local_stub",
+    seed: int = 0,
+    fraction: float = FRACTION,
+    mask: np.ndarray | None = None,
+    client=None,
+    fps: int | None = None,
+    edge_min: float = EDGE_CORR_MIN,
+    mask_max: float = MASK_CHANGE_MAX,
+) -> dict:
     """Copy src to dst, restyle the selected frames of every video, write the sidecar, summary and variant mp4s."""
     from arrival.export.lerobot import write_video
     from arrival.export.validate import validate
@@ -254,14 +311,27 @@ def vary_dataset(src: str | Path, dst: str | Path, backend: str = "local_stub", 
         for fi in select_frames(ep, len(frames), seed, fraction):
             counts["selected"] += 1
             orig = frames[fi]
-            row = {"original_id": f"{key}/ep{ep:06d}/f{fi:06d}", "variant_id": f"{key}/ep{ep:06d}/f{fi:06d}_v",
-                   "episode_index": ep, "frame_index": fi, "backend": cli.name, "model": cli.model,
-                   "version": cli.version, "parameters": {"seed": seed, "fraction": fraction},
-                   "latency_ms": None, "status": "failed", "skipped": False, "reason": None,
-                   "edge_corr": None, "mask_change": None}
+            row = {
+                "original_id": f"{key}/ep{ep:06d}/f{fi:06d}",
+                "variant_id": f"{key}/ep{ep:06d}/f{fi:06d}_v",
+                "episode_index": ep,
+                "frame_index": fi,
+                "backend": cli.name,
+                "model": cli.model,
+                "version": cli.version,
+                "parameters": {"seed": seed, "fraction": fraction},
+                "latency_ms": None,
+                "status": "failed",
+                "skipped": False,
+                "reason": None,
+                "edge_corr": None,
+                "mask_change": None,
+            }
             if cli.name == "cosmos" and (not cli.url or consecutive >= BREAKER):
-                row.update(skipped=True, reason="COSMOS_URL not set" if not cli.url else
-                           f"skipped after {BREAKER} consecutive failures")
+                row.update(
+                    skipped=True,
+                    reason="COSMOS_URL not set" if not cli.url else f"skipped after {BREAKER} consecutive failures",
+                )
                 counts["skipped"] += 1
                 counts["failed"] += 1
                 rows.append(row)
@@ -281,8 +351,12 @@ def vary_dataset(src: str | Path, dst: str | Path, backend: str = "local_stub", 
                 rows.append(row)
                 continue
             consecutive = 0
-            row.update(latency_ms=round((time.perf_counter() - t0) * 1000, 2), model=cli.model, version=cli.version,
-                       parameters={**row["parameters"], **params})
+            row.update(
+                latency_ms=round((time.perf_counter() - t0) * 1000, 2),
+                model=cli.model,
+                version=cli.version,
+                parameters={**row["parameters"], **params},
+            )
             chk = check_frame(orig, out, mask, edge_min, mask_max)
             row.update(edge_corr=chk["edge_corr"], mask_change=chk["mask_change"], reason=chk["reason"])
             if chk["ok"]:
@@ -300,13 +374,20 @@ def vary_dataset(src: str | Path, dst: str | Path, backend: str = "local_stub", 
     label = "cosmos" if cosmos_ok else ("local_stub" if backend == "local_stub" and counts["ok"] else "none")
     (dst / "meta" / SIDECAR).write_text("".join(json.dumps(r) + "\n" for r in rows))
     backend_latency_s = round(sum(r["latency_ms"] or 0 for r in rows) / 1000, 3)
-    summary = {"arrival_appearance_variation": label, "backend_requested": backend, "seed": seed,
-               "fraction": fraction, "requests": counts.pop("selected"), **counts,
-               "cosmos_model": cli.model if cli.name == "cosmos" and cosmos_ok else None,
-               "backend_latency_s": backend_latency_s,
-               "added_latency_s": round(time.perf_counter() - stage_start, 3), "cost_usd": None,
-               "note": "frames not ok stay original; added latency includes copy, backend calls and video writes; "
-                       "USD is unknown without endpoint billing data"}
+    summary = {
+        "arrival_appearance_variation": label,
+        "backend_requested": backend,
+        "seed": seed,
+        "fraction": fraction,
+        "requests": counts.pop("selected"),
+        **counts,
+        "cosmos_model": cli.model if cli.name == "cosmos" and cosmos_ok else None,
+        "backend_latency_s": backend_latency_s,
+        "added_latency_s": round(time.perf_counter() - stage_start, 3),
+        "cost_usd": None,
+        "note": "frames not ok stay original; added latency includes copy, backend calls and video writes; "
+        "USD is unknown without endpoint billing data",
+    }
     (dst / "meta" / SUMMARY).write_text(json.dumps(summary, indent=2))
     info["arrival_appearance_variation"] = label
     (dst / "meta" / "info.json").write_text(json.dumps(info, indent=2))
@@ -314,8 +395,9 @@ def vary_dataset(src: str | Path, dst: str | Path, backend: str = "local_stub", 
 
 
 def main(argv: list[str] | None = None) -> int:
-    ap = argparse.ArgumentParser(prog="python -m arrival.render.variation",
-                                 description="appearance variation over a COPY of a sim dataset")
+    ap = argparse.ArgumentParser(
+        prog="python -m arrival.render.variation", description="appearance variation over a COPY of a sim dataset"
+    )
     ap.add_argument("src")
     ap.add_argument("dst")
     ap.add_argument("--backend", choices=["cosmos", "local_stub"], default="local_stub")

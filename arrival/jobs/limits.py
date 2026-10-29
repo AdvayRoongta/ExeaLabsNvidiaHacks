@@ -39,13 +39,16 @@ class QueueFull(LimitError):
 class Limits:
     """Every ceiling the web page and the worker enforce, with the defaults used when the environment sets none. 0 turns
     a limit off where noted."""
+
     max_upload_bytes: int = MAX_UPLOAD_BYTES  # one upload; web 413 and worker re-check of upload.bin
     max_episodes: int = 100  # episodes per job (the sim's attempt count)
     max_people: int = 4  # simulated people per job
     max_job_seconds: float = 1800.0  # wall clock per job; 0 runs the job in-process with no timeout
     max_queue: int = 20  # queued + running jobs; a new upload beyond this is refused (0 = unlimited)
     max_job_bytes: int = 0  # resident memory of a job's child process tree; the worker kills it past this; 0 = off
-    retention_hours: float | None = None  # finished jobs older than this are deleted by the worker sweep; None keeps them
+    retention_hours: float | None = (
+        None  # finished jobs older than this are deleted by the worker sweep; None keeps them
+    )
     stale_seconds: float = 120.0  # a running job whose worker has not heartbeat this long is requeued
     job_retries: int = 2  # a failed attempt goes back to the queue at most this many times; 0 = never retry
     job_retry_backoff: int = 5  # seconds before a requeued job can be claimed; doubles per attempt, capped at 300
@@ -89,7 +92,10 @@ class Limits:
             if name in ("max_job_seconds", "retention_hours"):
                 kw[name] = num
             else:
-                if name in ("max_episodes", "max_people", "max_queue", "job_retries", "job_retry_backoff") and not num.is_integer():
+                if (
+                    name in ("max_episodes", "max_people", "max_queue", "job_retries", "job_retry_backoff")
+                    and not num.is_integer()
+                ):
                     raise LimitError(f"{var}={raw!r} must be a whole number")
                 scaled = num * scale
                 if num > 0 and scaled < 1:

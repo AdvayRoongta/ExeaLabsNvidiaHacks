@@ -32,6 +32,7 @@ DRIVE_LANE = 0.6  # ...and within this of the drive line. Driving, the robot rea
 class Policy:
     """What run_episode drives: `reset(env, task)` before an episode, then `act(obs)` once per control step for 7 arm
     joint targets and a gripper opening (ScriptedExpert, VLAClient)."""
+
     def reset(self, env, task: dict) -> None:  # noqa: D401
         pass
 
@@ -67,10 +68,18 @@ DOOR_SIDE_YAWS = (0.0, -0.4, 0.4)  # rad the hand turns from the panel's directi
 FLAP_OUT = 0.12  # m: how far out along the door normal the hand backs off after letting a flap door go
 FAUCET_UNDER, FAUCET_PUSH = 0.045, 0.05  # m: closed fingers start this far below the lever tip, then travel up this far
 FLAP_TILTS = (0.0, 0.35, 0.7, 1.35)  # rad below the door's horizontal for the hand on a flap-door bar; chosen per task
-ROLL_TRIES = (0.0, 0.2, -0.2, 0.4, -0.4)  # rad of wrist roll about the tool axis tried when a plan parks a joint on its stop
+ROLL_TRIES = (
+    0.0,
+    0.2,
+    -0.2,
+    0.4,
+    -0.4,
+)  # rad of wrist roll about the tool axis tried when a plan parks a joint on its stop
 MAX_REPLANS = 35  # (yaw, roll) combinations a re-plan may try
 YAW_TRIES = (0.0, 0.15, -0.15, 0.3, -0.3, 0.5, -0.5)  # rad of grasp yaw about the vertical, likewise
-LIMIT_PLAN_STEPS = 38  # a plan with a joint on its stop longer than this is re-planned off the stops (quality flags at 40)
+LIMIT_PLAN_STEPS = (
+    38  # a plan with a joint on its stop longer than this is re-planned off the stops (quality flags at 40)
+)
 REPLAN_ACCEPT_STEPS = 30  # a re-plan this clear of the stops is taken at once; a longer one only as the best of all
 FLAP_RELEASE = 0.5  # rad; a bottom-hinged door is let go here and falls to its flat stop (its handle swings
 # toward the base as it opens, and past this angle the wrist would have to fold back under the arm)
@@ -140,11 +149,21 @@ class ScriptedExpert(Policy):
         lift = [((p[0], p[1], gz + 0.22), R, c, s)]
         if g is not None:  # a wide object tips in the pads as it leaves the counter: lift it in short steps
             lift = [((p[0], p[1], gz + dz), R, c, s, dz < 0.22) for dz in (0.03, 0.08, 0.15, 0.22)]
-        return [((p[0], p[1], gz + 0.18), R, o, s), ((p[0], p[1], gz + 0.02), R, o, s),
-                ((p[0], p[1], gz), R, o, s // 2), ((p[0], p[1], gz), R, c, self.hold_steps)] + lift + [
+        return (
+            [
+                ((p[0], p[1], gz + 0.18), R, o, s),
+                ((p[0], p[1], gz + 0.02), R, o, s),
+                ((p[0], p[1], gz), R, o, s // 2),
+                ((p[0], p[1], gz), R, c, self.hold_steps),
+            ]
+            + lift
+            + [
                 ((tgt[0], tgt[1], gz + 0.22), R, c, 2 * s),
-                ((tgt[0], tgt[1], tgt[2]), R, c, s), ((tgt[0], tgt[1], tgt[2]), R, o, self.hold_steps),
-                ((tgt[0], tgt[1], tgt[2] + 0.2), R, o, s)]
+                ((tgt[0], tgt[1], tgt[2]), R, c, s),
+                ((tgt[0], tgt[1], tgt[2]), R, o, self.hold_steps),
+                ((tgt[0], tgt[1], tgt[2] + 0.2), R, o, s),
+            ]
+        )
 
     def _open_drawer(self, env, task: dict, o: float, c: float) -> list[tuple]:
         """Grip the drawer handle across the pull axis and pull the drawer out in short steps."""
@@ -153,9 +172,11 @@ class ScriptedExpert(Policy):
         h = h + np.array([0, 0, 0.0])
         pre = h + np.array([0, 0, 0.12])
         s = self.seg_steps
-        return [(pre, R, o, s), (h + 0.005 * axis, R, o, s), (h + 0.005 * axis, R, c, self.hold_steps)] + [
-            (h + (0.005 + 0.32 * k / 6) * axis, R, c, s // 2, k < 6) for k in range(1, 7)] + [
-            (h + 0.325 * axis, R, o, self.hold_steps), (h + 0.325 * axis + np.array([0, 0, 0.15]), R, o, s)]
+        return (
+            [(pre, R, o, s), (h + 0.005 * axis, R, o, s), (h + 0.005 * axis, R, c, self.hold_steps)]
+            + [(h + (0.005 + 0.32 * k / 6) * axis, R, c, s // 2, k < 6) for k in range(1, 7)]
+            + [(h + 0.325 * axis, R, o, self.hold_steps), (h + 0.325 * axis + np.array([0, 0, 0.15]), R, o, s)]
+        )
 
     def _put_in_drawer(self, env, task: dict, o: float, c: float) -> list[tuple]:
         """Pick the object and lower it onto the open drawer's tray in short via steps."""
@@ -171,10 +192,18 @@ class ScriptedExpert(Policy):
         n_steps = int(np.ceil((lift - tgt[2]) / 0.1))
         zs = np.linspace(lift, tgt[2], n_steps + 1)[1:]
         descent = [((tgt[0], tgt[1], z), R, c, s // 2, k < n_steps - 1) for k, z in enumerate(zs)]
-        return [((p[0], p[1], gz + 0.18), R, o, s), ((p[0], p[1], gz + 0.02), R, o, s),
-                ((p[0], p[1], gz), R, o, s // 2), ((p[0], p[1], gz), R, c, self.hold_steps),
-                ((p[0], p[1], lift), R, c, s), ((tgt[0], tgt[1], lift), R, c, 2 * s)] + descent + [
-                ((tgt[0], tgt[1], tgt[2]), R, o, self.hold_steps), ((tgt[0], tgt[1], tgt[2] + 0.15), R, o, s)]
+        return (
+            [
+                ((p[0], p[1], gz + 0.18), R, o, s),
+                ((p[0], p[1], gz + 0.02), R, o, s),
+                ((p[0], p[1], gz), R, o, s // 2),
+                ((p[0], p[1], gz), R, c, self.hold_steps),
+                ((p[0], p[1], lift), R, c, s),
+                ((tgt[0], tgt[1], lift), R, c, 2 * s),
+            ]
+            + descent
+            + [((tgt[0], tgt[1], tgt[2]), R, o, self.hold_steps), ((tgt[0], tgt[1], tgt[2] + 0.15), R, o, s)]
+        )
 
     def _wipe_counter(self, env, task: dict, o: float, c: float) -> list[tuple]:
         """Pick the sponge and stroke it along the counter pressed to the top."""
@@ -190,11 +219,20 @@ class ScriptedExpert(Policy):
             gz = press = g["z"]
         u = np.array([np.cos(env.run_yaw()), np.sin(env.run_yaw())])  # strokes run along the counter
         strokes = [(p[0] + d * u[0], p[1] + d * u[1], press) for d in (0.15, -0.15, 0.15, -0.15)]
-        return [((p[0], p[1], gz + 0.15), R, o, s), ((p[0], p[1], gz), R, o, s),
-                ((p[0], p[1], gz), R, c, self.hold_steps), ((p[0], p[1], press), R, c, s // 2)] + [
-                (w, R, c, s, k < 3) for k, w in enumerate(strokes)] + [
-                ((p[0], p[1], press), R, c, s), ((p[0], p[1], press), R, o, self.hold_steps),
-                ((p[0], p[1], press + 0.15), R, o, s)]
+        return (
+            [
+                ((p[0], p[1], gz + 0.15), R, o, s),
+                ((p[0], p[1], gz), R, o, s),
+                ((p[0], p[1], gz), R, c, self.hold_steps),
+                ((p[0], p[1], press), R, c, s // 2),
+            ]
+            + [(w, R, c, s, k < 3) for k, w in enumerate(strokes)]
+            + [
+                ((p[0], p[1], press), R, c, s),
+                ((p[0], p[1], press), R, o, self.hold_steps),
+                ((p[0], p[1], press + 0.15), R, o, s),
+            ]
+        )
 
     def _close_drawer(self, env, task: dict, o: float, c: float) -> list[tuple]:
         """Push the open drawer shut from in front with the closed fingers."""
@@ -204,9 +242,11 @@ class ScriptedExpert(Policy):
         touch = h + 0.025 * axis  # closed finger block (6 mm half) against the bar (12 mm radius)
         s = self.seg_steps
         shut = touch - float(self.open_at) * axis
-        return [(touch + 0.12 * axis + np.array([0, 0, 0.1]), R, c, s), (touch + 0.03 * axis, R, c, s)] + [
-            (touch + (0.03 - (0.03 + float(self.open_at)) * k / 4) * axis, R, c, s // 2, k < 4) for k in range(1, 5)] + [
-            (shut + 0.1 * axis, R, o, s)]
+        return (
+            [(touch + 0.12 * axis + np.array([0, 0, 0.1]), R, c, s), (touch + 0.03 * axis, R, c, s)]
+            + [(touch + (0.03 - (0.03 + float(self.open_at)) * k / 4) * axis, R, c, s // 2, k < 4) for k in range(1, 5)]
+            + [(shut + 0.1 * axis, R, o, s)]
+        )
 
     def _close_door(self, env, task: dict, o: float, c: float) -> list[tuple]:
         """Push the open cabinet door shut: first from the side, then from in front."""
@@ -238,20 +278,26 @@ class ScriptedExpert(Policy):
             if (np.dot(along, start[1][:, 1]) < 0) != flip:
                 along = -along
             rot = a - a_ref + yaw
-            ax = np.array([np.cos(rot) * along[0] - np.sin(rot) * along[1],
-                           np.sin(rot) * along[0] + np.cos(rot) * along[1]])
+            ax = np.array(
+                [np.cos(rot) * along[0] - np.sin(rot) * along[1], np.sin(rot) * along[0] + np.cos(rot) * along[1]]
+            )
             return ik.tilted(nrm(a)[:2], ax, np.radians(10))
 
         def plan(yaw, flip):
-            out = [(pt(a_open) + hand["door_push"] * nrm(a_open) + 0.15 * up, ori(a_open, a_open, yaw=yaw), c, s),
-                   (pt(a_open) + hand["door_push"] * nrm(a_open), ori(a_open, a_open, yaw=yaw), c, s)]
+            out = [
+                (pt(a_open) + hand["door_push"] * nrm(a_open) + 0.15 * up, ori(a_open, a_open, yaw=yaw), c, s),
+                (pt(a_open) + hand["door_push"] * nrm(a_open), ori(a_open, a_open, yaw=yaw), c, s),
+            ]
             for k in range(1, 5):
                 a = a_open + (a_mid - a_open) * k / 4
                 out.append((pt(a) + hand["door_push"] * nrm(a), ori(a, a_open, yaw=yaw), c, s // 2, k < 4))
-            out += [(out[-1][0] + 0.15 * up, out[-1][1], c, s), (*start, c, s),
-                    (pt(a_mid) + 0.2 * nrm(a_mid) + 0.35 * up, ori(a_mid, a_mid, flip), c, s),
-                    (pt(a_mid) + 0.2 * nrm(a_mid), ori(a_mid, a_mid, flip), c, s),
-                    (pt(a_mid) + hand["door_push"] * nrm(a_mid), ori(a_mid, a_mid, flip), c, s)]
+            out += [
+                (out[-1][0] + 0.15 * up, out[-1][1], c, s),
+                (*start, c, s),
+                (pt(a_mid) + 0.2 * nrm(a_mid) + 0.35 * up, ori(a_mid, a_mid, flip), c, s),
+                (pt(a_mid) + 0.2 * nrm(a_mid), ori(a_mid, a_mid, flip), c, s),
+                (pt(a_mid) + hand["door_push"] * nrm(a_mid), ori(a_mid, a_mid, flip), c, s),
+            ]
             for k in range(1, 5):
                 a = a_mid + (a_end - a_mid) * k / 4
                 out.append((pt(a) + hand["door_push"] * nrm(a), ori(a, a_mid, flip), c, s // 2, k < 4))
@@ -261,8 +307,10 @@ class ScriptedExpert(Policy):
         # the reach round the free edge can leave joint 7 on its +2.90 stop with the hand square to the panel, and
         # which jaw heading reaches the bar from in front depends on how far the arm turns: plan the variants
         # and keep the one reset() would, the smallest joint 7 peak among those within 5 mm of the best IK error
-        plans = [(wps, *self._plan(env, wps)[1:])
-                 for wps in (plan(yaw, flip) for yaw in DOOR_SIDE_YAWS for flip in (False, True))]
+        plans = [
+            (wps, *self._plan(env, wps)[1:])
+            for wps in (plan(yaw, flip) for yaw in DOOR_SIDE_YAWS for flip in (False, True))
+        ]
         best_err = min(err for _, err, _ in plans)
         return min((pl for pl in plans if pl[1] <= best_err + 0.005), key=lambda pl: pl[2])[0]
 
@@ -293,13 +341,18 @@ class ScriptedExpert(Policy):
 
         def ori(a):
             rot = DOOR_TURN * (a - a0)
-            ax = np.array([np.cos(rot) * along[0] - np.sin(rot) * along[1],
-                           np.sin(rot) * along[0] + np.cos(rot) * along[1]])
+            ax = np.array(
+                [np.cos(rot) * along[0] - np.sin(rot) * along[1], np.sin(rot) * along[0] + np.cos(rot) * along[1]]
+            )
             return ik.tilted(nrm(a)[:2], ax, np.radians(15))
 
         n0, g = nrm(a0), pt(a0)
-        out = [(g + 0.2 * n0 + 0.35 * up, ori(a0), o, s), (g + 0.2 * n0, ori(a0), o, s),
-               (g + 0.005 * n0, ori(a0), o, s), (g + 0.005 * n0, ori(a0), c, self.hold_steps)]
+        out = [
+            (g + 0.2 * n0 + 0.35 * up, ori(a0), o, s),
+            (g + 0.2 * n0, ori(a0), o, s),
+            (g + 0.005 * n0, ori(a0), o, s),
+            (g + 0.005 * n0, ori(a0), c, self.hold_steps),
+        ]
         for k in range(1, 9):  # one smooth via-point pull: stop-and-go pulses let the bar slide off the pads
             a = a0 - np.radians(80) * k / 8
             out.append((pt(a) + 0.005 * nrm(a), ori(a), c, s // 2, k < 8))
@@ -340,8 +393,13 @@ class ScriptedExpert(Policy):
             return ik.facing(nrm(qa(q))[:2]) @ FRIDGE_PUSH_ROLL
 
         d0, g = along(a0), pt(a0)
-        out = [(g + 0.25 * d0 + 0.15 * up, ori(a0), o, s), (g + 0.25 * d0, ori(a0), o, s),
-               (g + 0.08 * d0, ori(a0), o, s, True), (g, ori(a0), o, s), (g, ori(a0), c, self.hold_steps)]
+        out = [
+            (g + 0.25 * d0 + 0.15 * up, ori(a0), o, s),
+            (g + 0.25 * d0, ori(a0), o, s),
+            (g + 0.08 * d0, ori(a0), o, s, True),
+            (g, ori(a0), o, s),
+            (g, ori(a0), c, self.hold_steps),
+        ]
         for k in range(1, 5):
             a = a0 + m * FRIDGE_HOOK * k / 4
             out.append((pt(a), ori(a), c, FRIDGE_PULL_STEPS, k < 4))
@@ -349,7 +407,10 @@ class ScriptedExpert(Policy):
         off = pt(a) + FRIDGE_CLEAR * along(a)
         back = hinge - off
         back[2] = 0.0
-        out += [(off, ori(a), c, s), (off + FRIDGE_SETTLE_IN * back / np.linalg.norm(back), ori(a), c, FRIDGE_SETTLE_STEPS)]
+        out += [
+            (off, ori(a), c, s),
+            (off + FRIDGE_SETTLE_IN * back / np.linalg.norm(back), ori(a), c, FRIDGE_SETTLE_STEPS),
+        ]
 
         def rest(q1):
             # Round the free edge to the inside face and push on, planned for the door at q1. Sliding off the
@@ -357,17 +418,21 @@ class ScriptedExpert(Policy):
             # and the rounding point is only FRIDGE_BACK behind the panel, so act() calls this again with the
             # angle measured after FRIDGE_SETTLE_STEPS and replaces the nominal plan built here for FRIDGE_HOOK.
             far = hinge + FRIDGE_FAR * along(qa(q1)) + (h[2] - hinge[2]) * up  # clear of the free edge
-            wps = [(far - FRIDGE_BACK * nrm(qa(q1)), pori(q1), c, s, True),
-                   (push(q1) - FRIDGE_BACK * nrm(qa(q1)), pori(q1), c, s)]
+            wps = [
+                (far - FRIDGE_BACK * nrm(qa(q1)), pori(q1), c, s, True),
+                (push(q1) - FRIDGE_BACK * nrm(qa(q1)), pori(q1), c, s),
+            ]
             start = min(q1 - np.radians(3), FRIDGE_PUSH_END)
             for k in range(7):
                 q = start + (FRIDGE_PUSH_END - start) * k / 6
                 wps.append((push(q), pori(q), c, FRIDGE_PULL_STEPS, k < 6))
             q = FRIDGE_PUSH_END
-            return wps + [(push(q) - 0.12 * nrm(qa(q)), pori(q), c, s),
-                          (push(q) - 0.12 * nrm(qa(q)) + 0.1 * up, pori(q), c, s)]
+            return wps + [
+                (push(q) - 0.12 * nrm(qa(q)), pori(q), c, s),
+                (push(q) - 0.12 * nrm(qa(q)) + 0.1 * up, pori(q), c, s),
+            ]
 
-        self.fridge_replan = (sum(w[3] for w in out), rest, f'{task["fixture"]}_door')
+        self.fridge_replan = (sum(w[3] for w in out), rest, f"{task['fixture']}_door")
         return out + rest(q1)
 
     def _open_flap_door(self, env, task: dict, o: float, c: float) -> list[tuple]:
@@ -410,8 +475,11 @@ class ScriptedExpert(Policy):
             # turning with the door pitches the hand up as the bar swings in, which the wrist reaches only with
             # joint 5 or joint 2 on its stop
             R = ori(0, tilt)
-            out = [(pt(0) + 0.18 * n + 0.05 * up, R, o, s), (pt(0) + hand["flap_bar"] * n, R, o, s),
-                   (pt(0) + hand["flap_bar"] * n, R, c, self.hold_steps)]
+            out = [
+                (pt(0) + 0.18 * n + 0.05 * up, R, o, s),
+                (pt(0) + hand["flap_bar"] * n, R, o, s),
+                (pt(0) + hand["flap_bar"] * n, R, c, self.hold_steps),
+            ]
             for k in range(1, 9):
                 q = FLAP_RELEASE * k / 8
                 out.append((pt(q) + hand["flap_bar"] * nrm(q), R, c, s // 2, k < 8))
@@ -439,9 +507,11 @@ class ScriptedExpert(Policy):
         # into the stop: 5 cm of hand travel from 3.5 cm below the tip lands the lever near 0.9 rad
         under = tip - np.array([0, 0, FAUCET_UNDER])
         lift = FAUCET_PUSH
-        return [(under + 0.12 * n + np.array([0, 0, 0.06]), R, c, s), (under + 0.12 * n, R, c, s),
-                (under, R, c, s)] + [(under + np.array([0, 0, lift * k / 3]), R, c, s // 2, k < 3) for k in (1, 2, 3)] + [
-                (under + np.array([0, 0, lift]) + 0.12 * n, R, c, s)]
+        return (
+            [(under + 0.12 * n + np.array([0, 0, 0.06]), R, c, s), (under + 0.12 * n, R, c, s), (under, R, c, s)]
+            + [(under + np.array([0, 0, lift * k / 3]), R, c, s // 2, k < 3) for k in (1, 2, 3)]
+            + [(under + np.array([0, 0, lift]) + 0.12 * n, R, c, s)]
+        )
 
     def _dishwasher_pick_place(self, env, task: dict, o: float, c: float) -> list[tuple]:
         """Load or unload the dishwasher: pick by the body and set down in short via steps."""
@@ -463,10 +533,15 @@ class ScriptedExpert(Policy):
         zs = np.linspace(lift, gz + 0.02, n_app + 1)[1:]
         approach = [((p[0], p[1], z), R, o, s // 2, k < n_app - 1) for k, z in enumerate(zs)]
         rise = [((p[0], p[1], z), R, c, s // 2, k < n_app - 1) for k, z in enumerate(zs[::-1])]  # same pace up
-        return [((p[0], p[1], lift), R, o, s)] + approach + [
-                ((p[0], p[1], gz), R, o, s // 2), ((p[0], p[1], gz), R, c, self.hold_steps)] + rise + [
-                ((p[0], p[1], lift), R, c, s // 2), ((tgt[0], tgt[1], lift), R, c, 2 * s)] + descent + [
-                ((tgt[0], tgt[1], tgt[2]), R, o, self.hold_steps), ((tgt[0], tgt[1], tgt[2] + 0.15), R, o, s)]
+        return (
+            [((p[0], p[1], lift), R, o, s)]
+            + approach
+            + [((p[0], p[1], gz), R, o, s // 2), ((p[0], p[1], gz), R, c, self.hold_steps)]
+            + rise
+            + [((p[0], p[1], lift), R, c, s // 2), ((tgt[0], tgt[1], lift), R, c, 2 * s)]
+            + descent
+            + [((tgt[0], tgt[1], tgt[2]), R, o, self.hold_steps), ((tgt[0], tgt[1], tgt[2] + 0.15), R, o, s)]
+        )
 
     @staticmethod
     def _chain_error(env, wps) -> float:
@@ -496,12 +571,23 @@ class ScriptedExpert(Policy):
         lift = [((p[0], p[1], gz + 0.22), R, c, s)]
         if g is not None:  # a wide object tips in the pads as it leaves the counter: lift it in short steps
             lift = [((p[0], p[1], gz + dz), R, c, s, dz < 0.22) for dz in (0.03, 0.08, 0.15, 0.22)]
-        return [((p[0], p[1], gz + 0.18), R, o, s, False, here), ((p[0], p[1], gz + 0.02), R, o, s),
-                ((p[0], p[1], gz), R, o, s // 2), ((p[0], p[1], gz), R, c, self.hold_steps)] + lift + [
+        return (
+            [
+                ((p[0], p[1], gz + 0.18), R, o, s, False, here),
+                ((p[0], p[1], gz + 0.02), R, o, s),
+                ((p[0], p[1], gz), R, o, s // 2),
+                ((p[0], p[1], gz), R, c, self.hold_steps),
+            ]
+            + lift
+            + [
                 (carry, R, c, s),
                 (None, None, c, s, False, there),
-                ((tgt[0], tgt[1], gz + 0.22), R, c, 2 * s), ((tgt[0], tgt[1], tgt[2]), R, c, s),
-                ((tgt[0], tgt[1], tgt[2]), R, o, self.hold_steps), ((tgt[0], tgt[1], tgt[2] + 0.2), R, o, s)]
+                ((tgt[0], tgt[1], gz + 0.22), R, c, 2 * s),
+                ((tgt[0], tgt[1], tgt[2]), R, c, s),
+                ((tgt[0], tgt[1], tgt[2]), R, o, self.hold_steps),
+                ((tgt[0], tgt[1], tgt[2] + 0.2), R, o, s),
+            ]
+        )
 
     def reset(self, env, task: dict) -> None:
         self.env, self.last, self.held = env, None, 0
@@ -533,8 +619,9 @@ class ScriptedExpert(Policy):
             best = None
             for yaw, roll in cands:
                 for f in (np.eye(3), flip):
-                    pl = self._plan(env, [(p, None if R is None else _rz(yaw) @ R @ f @ _rz(roll), *rest)
-                                          for p, R, *rest in wps])
+                    pl = self._plan(
+                        env, [(p, None if R is None else _rz(yaw) @ R @ f @ _rz(roll), *rest) for p, R, *rest in wps]
+                    )
                     run = self._limit_run(env, pl[0])
                     if pl[1] <= self.ik_error + 0.005 and run < self._limit_run(env, self.plan):
                         if best is None or run < best[0]:
@@ -576,14 +663,19 @@ class ScriptedExpert(Policy):
             via = bool(rest[0]) if rest else False
             nxt_base = np.asarray(rest[1], dtype=float) if len(rest) > 1 and rest[1] is not None else base
             if pos is not None:
-                pin = (env.badr, nxt_base - env.base0) if env.mobile else None  # solve with the base where it will stand
+                pin = (
+                    (env.badr, nxt_base - env.base0) if env.mobile else None
+                )  # solve with the base where it will stand
                 q, err = ik.solve(env.model, env.data, pos, R, q, env.qadr, env.dofadr, fixed=pin)
                 ik_error, q7 = max(ik_error, err), max(q7, abs(float(q[6])))
             d_xy = float(np.hypot(*(nxt_base[:2] - base[:2])))
             d_yaw = abs(float(nxt_base[2] - base[2]))
             if d_xy > 1e-6 or d_yaw > 1e-6:  # a drive: long enough that the min-jerk peak stays under the limits
-                steps = max(steps, int(np.ceil(MINJERK_PEAK * d_xy / BASE_SPEED * FPS)) + 2,
-                            int(np.ceil(MINJERK_PEAK * d_yaw / BASE_TURN * FPS)) + 2)
+                steps = max(
+                    steps,
+                    int(np.ceil(MINJERK_PEAK * d_xy / BASE_SPEED * FPS)) + 2,
+                    int(np.ceil(MINJERK_PEAK * d_yaw / BASE_TURN * FPS)) + 2,
+                )
             base = nxt_base
             nxt = np.concatenate([q, [g], base])
             chain.append((nxt, steps))
@@ -594,7 +686,7 @@ class ScriptedExpert(Policy):
             pts = np.array([prev] + [p for p, _ in chain])
             for k in range(1, total + 1):
                 t = min(1.0, k / max(1, total - 2))
-                s = t ** 3 * (10 - 15 * t + 6 * t * t)
+                s = t**3 * (10 - 15 * t + 6 * t * t)
                 plan.append(np.array([np.interp(s, knots, pts[:, j]) for j in range(pts.shape[1])]))
             prev, chain = nxt, []
         return plan, ik_error, q7
@@ -608,11 +700,13 @@ class ScriptedExpert(Policy):
         self.fridge_replan = None
         wps = rest(float(self.env.data.joint(joint).qpos[0]))
         flip = np.diag([-1.0, -1.0, 1.0])
-        plans = [self._plan(self.env, w, start=self.last) for w in
-                 (wps, [(p, None if R is None else R @ flip, *r) for p, R, *r in wps])]
+        plans = [
+            self._plan(self.env, w, start=self.last)
+            for w in (wps, [(p, None if R is None else R @ flip, *r) for p, R, *r in wps])
+        ]
         best_err = min(err for _, err, _ in plans)
         plan, err, _ = min((pl for pl in plans if pl[1] <= best_err + 0.005), key=lambda pl: pl[2])
-        self.plan = self.plan[:self.t] + plan
+        self.plan = self.plan[: self.t] + plan
         self.ik_error = max(self.ik_error, err)
 
     def act(self, obs: dict) -> np.ndarray:
@@ -642,6 +736,7 @@ class ScriptedExpert(Policy):
 
 
 # ---------- language planning ----------
+
 
 def rule_plan(instruction: str, objects: list[str], fixtures: list[str]) -> dict:
     """Deterministic parser: family + object + target from keywords."""
@@ -676,8 +771,14 @@ class VLMPlanner:
         self._cache = self._load_cache()
         self._offline = False  # set by the first network failure so later tasks skip the 60 s timeout
 
-    def _cache_key(self, instruction: str, objects: list[str], fixtures: list[str],
-                   research_context: str | None = None, families: tuple[str, ...] | None = None) -> str:
+    def _cache_key(
+        self,
+        instruction: str,
+        objects: list[str],
+        fixtures: list[str],
+        research_context: str | None = None,
+        families: tuple[str, ...] | None = None,
+    ) -> str:
         # the families offered are part of the question: a plan cached under another offer (the 9-family prompt,
         # another room's list) never answers
         offered = "|".join(families or self._offered_families())
@@ -713,13 +814,13 @@ class VLMPlanner:
     @staticmethod
     def _system_prompt(families: tuple[str, ...] | None = None) -> str:
         families = families or VLMPlanner._offered_families()
-        return "Return only JSON: {\"family\": one of " + "|".join(families) + ", \"object\": id|null, \"target\": id|null}"
+        return 'Return only JSON: {"family": one of ' + "|".join(families) + ', "object": id|null, "target": id|null}'
 
     @staticmethod
     def _parse_plan(txt: str, objects: list[str], fixtures: list[str], families: tuple[str, ...] | None = None) -> dict:
         """First JSON object in the reply, checked against the known families (and, when given, the ones the prompt
         offered), objects and fixtures."""
-        plan, _ = json.JSONDecoder().raw_decode(txt[txt.index("{"):])
+        plan, _ = json.JSONDecoder().raw_decode(txt[txt.index("{") :])
         if not isinstance(plan, dict) or plan.get("family") not in SIM_FAMILIES:
             raise ValueError(f"plan has no known family: {plan!r}")
         if families is not None and plan["family"] not in families:
@@ -732,8 +833,14 @@ class VLMPlanner:
             raise ValueError(f"plan target {plan['target']!r} is not in the scene")
         return {"family": plan["family"], "object": plan.get("object"), "target": plan.get("target")}
 
-    def plan(self, instruction: str, objects: list[str], fixtures: list[str],
-             research_context: str | None = None, twin: dict | None = None) -> dict:
+    def plan(
+        self,
+        instruction: str,
+        objects: list[str],
+        fixtures: list[str],
+        research_context: str | None = None,
+        twin: dict | None = None,
+    ) -> dict:
         """The plan (family, object, target) for an instruction in this room: from the cache when the same request was
         planned before, from the keyword rules when offline, else from Nemotron through Token Factory, falling back
         to the rules on any failure. `source` says which answered."""
@@ -752,8 +859,14 @@ class VLMPlanner:
             user_payload = {"instruction": instruction, "objects": objects, "fixtures": fixtures}
             if research_context:
                 user_payload["research_context"] = research_context
-            txt = complete([{"role": "system", "content": self._system_prompt(offered)},
-                            {"role": "user", "content": json.dumps(user_payload)}], role="super", temperature=0)
+            txt = complete(
+                [
+                    {"role": "system", "content": self._system_prompt(offered)},
+                    {"role": "user", "content": json.dumps(user_payload)},
+                ],
+                role="super",
+                temperature=0,
+            )
             plan = self._parse_plan(txt, objects, fixtures, offered)
             self.source = "token_factory"
             self._cache[key] = plan
@@ -818,8 +931,9 @@ class VLAClient(Policy):
 
             schema = getattr(self, "active_schema", self.schema or "arm")
             body = json.dumps(encode_request(obs, self.instruction, schema)).encode()
-            req = urllib.request.Request(self.url.rstrip("/") + "/act", data=body, method="POST",
-                                         headers={"Content-Type": "application/json"})
+            req = urllib.request.Request(
+                self.url.rstrip("/") + "/act", data=body, method="POST", headers={"Content-Type": "application/json"}
+            )
             with urllib.request.urlopen(req, timeout=self.timeout) as r:
                 self.queue = list(decode_response(json.load(r), schema))
         return np.asarray(self.queue.pop(0), dtype=float)

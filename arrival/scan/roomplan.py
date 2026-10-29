@@ -128,12 +128,24 @@ def _walls(w: dict) -> list[dict]:
     if isinstance(center, (list, tuple)) and len(center) >= 2:
         if all(is_finite_number(v) for v in center[:2]):
             cx, cz = float(center[0]), float(center[1])
-    pts = [_apply(m, [cx + radius * math.cos(start + sweep * i / n), 0.0,
-                      cz + radius * math.sin(start + sweep * i / n)])[:2] for i in range(n + 1)]
+    pts = [
+        _apply(m, [cx + radius * math.cos(start + sweep * i / n), 0.0, cz + radius * math.sin(start + sweep * i / n)])[
+            :2
+        ]
+        for i in range(n + 1)
+    ]
     thickness = float(min(dim[0], dim[2]))
     ident = _ident(w, "wall")
-    return [{"id": ident, "start": pts[i], "end": pts[i + 1], "height": float(dim[1]),
-             "thickness": thickness if thickness > 0 else MIN_WALL_THICKNESS} for i in range(n)]
+    return [
+        {
+            "id": ident,
+            "start": pts[i],
+            "end": pts[i + 1],
+            "height": float(dim[1]),
+            "thickness": thickness if thickness > 0 else MIN_WALL_THICKNESS,
+        }
+        for i in range(n)
+    ]
 
 
 def _object(o: dict, i: int) -> dict:
@@ -236,7 +248,9 @@ def _snap(yaw: float) -> float:
     return 0.0 if abs(yaw) < 1e-9 else round(yaw, 9)
 
 
-def _align(walls: list[dict], posed: list[dict], polygons: list[list[list[float]]]) -> tuple[float, float, float, float]:
+def _align(
+    walls: list[dict], posed: list[dict], polygons: list[list[list[float]]]
+) -> tuple[float, float, float, float]:
     """Rotate about z so the longest wall runs along +X, then translate the walls' min corner to (0, 0).
     `posed` entries carry position and yaw; `polygons` are bare [x, y] lists."""
     if not walls:
@@ -391,8 +405,9 @@ def to_bundle(roomplan: dict, room_id: str, story: int | None = None) -> dict:
     _unique(walls)
     fixtures = [_object(o, i) for i, o in enumerate(roomplan.get("objects", [])) if _kept(o)]
     _unique(fixtures)
-    portals = {key: [_portal(s, i, kind, segments) for i, s in enumerate(roomplan.get(key, []))]
-               for key, kind in PORTALS}
+    portals = {
+        key: [_portal(s, i, kind, segments) for i, s in enumerate(roomplan.get(key, []))] for key, kind in PORTALS
+    }
     for ps in portals.values():
         _unique(ps)
     floors = [fl for fl in (_floor(f, i, z0) for i, f in enumerate(roomplan.get("floors", []))) if fl]
@@ -406,8 +421,7 @@ def to_bundle(roomplan: dict, room_id: str, story: int | None = None) -> dict:
         "units": "meters",
         "frame": "z_up",
         "geometry_source": "roomplan",
-        "arkit_world_to_room": [[c, 0.0, s, -mx], [s, 0.0, -c, -my],
-                                [0.0, 1.0, 0.0, -z0], [0.0, 0.0, 0.0, 1.0]],
+        "arkit_world_to_room": [[c, 0.0, s, -mx], [s, 0.0, -c, -my], [0.0, 1.0, 0.0, -z0], [0.0, 0.0, 0.0, 1.0]],
         "blocks_claims": [],
         "walls": walls,
         "fixtures": fixtures,

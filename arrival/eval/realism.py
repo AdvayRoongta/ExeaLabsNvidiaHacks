@@ -147,7 +147,7 @@ def _ssim_map(a: np.ndarray, b: np.ndarray, win: int = SSIM_WIN) -> np.ndarray:
         p = np.pad(x, win // 2, mode="edge")
         return sliding_window_view(p, (win, win)).mean(axis=(-1, -2))
 
-    c1, c2 = 0.01 ** 2, 0.03 ** 2
+    c1, c2 = 0.01**2, 0.03**2
     ma, mb = mean(a), mean(b)
     va, vb, cab = mean(a * a) - ma * ma, mean(b * b) - mb * mb, mean(a * b) - ma * mb
     return ((2 * ma * mb + c1) * (2 * cab + c2)) / ((ma * ma + mb * mb + c1) * (va + vb + c2))
@@ -166,11 +166,17 @@ def score(rgb_ref, depth_ref, rgb_sim, depth_sim, valid_depth_mask, robot_mask=N
     n_px = depth_ref.size
     a, b = rgb_ref.astype(float) / 255.0, rgb_sim.astype(float) / 255.0
     n_rgb, n_depth = int(keep.sum()), int(d_use.sum())
-    out = {"depth_l1_m": float(np.abs(depth_ref - depth_sim)[d_use].mean()) if n_depth else None,
-           "n_depth": n_depth, "n_rgb": n_rgb,
-           "depth_mask_coverage": round(n_depth / n_px, 4), "rgb_mask_coverage": round(n_rgb / n_px, 4),
-           "depth_sim_no_hit": int((d_ok & ~sim_hit).sum()),
-           "rgb_mae": None, "rgb_one_minus_ssim": None, "rgb_psnr_db": None}
+    out = {
+        "depth_l1_m": float(np.abs(depth_ref - depth_sim)[d_use].mean()) if n_depth else None,
+        "n_depth": n_depth,
+        "n_rgb": n_rgb,
+        "depth_mask_coverage": round(n_depth / n_px, 4),
+        "rgb_mask_coverage": round(n_rgb / n_px, 4),
+        "depth_sim_no_hit": int((d_ok & ~sim_hit).sum()),
+        "rgb_mae": None,
+        "rgb_one_minus_ssim": None,
+        "rgb_psnr_db": None,
+    }
     if n_rgb:
         out["rgb_mae"] = float(np.abs(a - b)[keep].mean())
         mse = float(((a - b) ** 2)[keep].mean())
@@ -202,8 +208,11 @@ def evaluate_frames(twin: dict, frames: list[dict], heldout_ids: list[str]) -> d
     if bad:
         raise ValueError(f"frames not in the held-out manifest: {', '.join(bad)}")
     if "realism" in twin.get("blocks_claims", []):
-        return {"realism": None, "reason": f"bundle {twin.get('room_id')!r} blocks the realism claim "
-                                          f"(geometry_source {twin.get('geometry_source')!r}); no metrics reported"}
+        return {
+            "realism": None,
+            "reason": f"bundle {twin.get('room_id')!r} blocks the realism claim "
+            f"(geometry_source {twin.get('geometry_source')!r}); no metrics reported",
+        }
     per = []
     for f in frames:
         rgb = np.asarray(f["rgb"])
@@ -216,12 +225,18 @@ def evaluate_frames(twin: dict, frames: list[dict], heldout_ids: list[str]) -> d
         n = sum(w for _, w in rows)
         return sum(v * w for v, w in rows) / n if n else None
 
-    return {"realism": {"frames": len(per), "heldout_only": True,
-                        "depth_l1_m": pooled("depth_l1_m", "n_depth"),
-                        "rgb_mae": pooled("rgb_mae", "n_rgb"),
-                        "rgb_one_minus_ssim": pooled("rgb_one_minus_ssim", "n_rgb"),
-                        "n_depth": sum(p["n_depth"] for p in per), "n_rgb": sum(p["n_rgb"] for p in per),
-                        "per_frame": per}}
+    return {
+        "realism": {
+            "frames": len(per),
+            "heldout_only": True,
+            "depth_l1_m": pooled("depth_l1_m", "n_depth"),
+            "rgb_mae": pooled("rgb_mae", "n_rgb"),
+            "rgb_one_minus_ssim": pooled("rgb_one_minus_ssim", "n_rgb"),
+            "n_depth": sum(p["n_depth"] for p in per),
+            "n_rgb": sum(p["n_rgb"] for p in per),
+            "per_frame": per,
+        }
+    }
 
 
 SHIFT_M, YAW_DEG = 0.15, 5.0  # the misaligned-pose control (perturb_pose)
@@ -230,8 +245,10 @@ MAX_FRAMES = 8
 PNG_FRAMES = 3
 MIN_CONFIDENCE = 2  # ARKit ARConfidenceLevel: 0 low, 1 medium, 2 high
 ARKIT_TO_CV = np.diag([1.0, -1.0, -1.0, 1.0])  # ARKit camera axes (y up, z back) -> OpenCV (y down, z forward)
-SCOPE = ("Schematic MuJoCo box render against reference frames: depth_l1_m measures geometry; rgb_mae, "
-         "rgb_one_minus_ssim and rgb_psnr_db mostly measure missing texture and lighting, not layout.")
+SCOPE = (
+    "Schematic MuJoCo box render against reference frames: depth_l1_m measures geometry; rgb_mae, "
+    "rgb_one_minus_ssim and rgb_psnr_db mostly measure missing texture and lighting, not layout."
+)
 
 
 class RealismError(ValueError):
@@ -258,7 +275,8 @@ def manifest_dir(scan_dir: Path) -> Path:
             return d
     raise RealismError(
         f"{scan_dir} has no {rgbd.MANIFEST_NAME}: realism needs posed RGB-D frames next to the scan. A RoomPlan-only "
-        f"or four-photo scan cannot support a realism claim; record frames with the RGB-D recorder (docs/SCANNING.md)")
+        f"or four-photo scan cannot support a realism claim; record frames with the RGB-D recorder (docs/SCANNING.md)"
+    )
 
 
 def load_twin(scan_dir: Path, twin_path: str | Path | None = None) -> tuple[dict, str]:
@@ -277,11 +295,15 @@ def load_twin(scan_dir: Path, twin_path: str | Path | None = None) -> tuple[dict
             twin = json.loads(p.read_text(encoding="utf-8"))
         except (OSError, ValueError) as e:
             raise RealismError(f"--twin {p} is not readable JSON: {e}") from e
-        missing = [k for k in ("walls", "fixtures", "objects")
-                   if not isinstance(twin, dict) or not isinstance(twin.get(k), list)]
+        missing = [
+            k
+            for k in ("walls", "fixtures", "objects")
+            if not isinstance(twin, dict) or not isinstance(twin.get(k), list)
+        ]
         if missing:
-            raise RealismError(f"--twin {p} is not a compiled twin (no {', '.join(missing)} list); pass "
-                               f"out/twins/<room_id>/twin.json")
+            raise RealismError(
+                f"--twin {p} is not a compiled twin (no {', '.join(missing)} list); pass out/twins/<room_id>/twin.json"
+            )
         return twin, str(p)
     for name, load in (("roomplan.json", lambda p: roomplan.load(p, room)), ("scan.json", scan_bundle.load)):
         p = scan_dir / name
@@ -319,8 +341,9 @@ def load_frame(m: rgbd.Manifest, f: rgbd.Frame, max_side: int = MAX_SIDE, min_co
 
     rgb = _open_image(f.rgb, "RGB", f.id)
     if rgb.size != tuple(m.rgb_size):
-        raise RealismError(f"frame {f.id}: rgb is {rgb.size[0]}x{rgb.size[1]}, the manifest says "
-                           f"{m.rgb_size[0]}x{m.rgb_size[1]}")
+        raise RealismError(
+            f"frame {f.id}: rgb is {rgb.size[0]}x{rgb.size[1]}, the manifest says {m.rgb_size[0]}x{m.rgb_size[1]}"
+        )
     try:
         depth = rgbd.load_depth(m, f)
     except (OSError, EOFError, ValueError) as e:
@@ -342,8 +365,14 @@ def load_frame(m: rgbd.Manifest, f: rgbd.Frame, max_side: int = MAX_SIDE, min_co
     K[0] *= tw / w
     K[1] *= th / h
     depth_t = _nearest(np.where(valid, depth, 0.0), (tw, th)).astype(np.float32)
-    return {"id": f.id, "rgb": np.asarray(rgb), "depth": depth_t, "valid_depth_mask": depth_t > 0, "K": K,
-            "cam_to_room": f.camera_to_room @ ARKIT_TO_CV}
+    return {
+        "id": f.id,
+        "rgb": np.asarray(rgb),
+        "depth": depth_t,
+        "valid_depth_mask": depth_t > 0,
+        "K": K,
+        "cam_to_room": f.camera_to_room @ ARKIT_TO_CV,
+    }
 
 
 def _pick(frames: list, n: int) -> list:
@@ -364,10 +393,18 @@ def _stack_png(path: Path, rows: list[Path]) -> None:
     out.save(path)
 
 
-def run_realism(scan: str | Path, out_dir: str | Path = "out", scans_dir: str | Path = "scans",
-                twin_path: str | Path | None = None, max_side: int = MAX_SIDE, max_frames: int = MAX_FRAMES,
-                png_frames: int = PNG_FRAMES, min_confidence: int = MIN_CONFIDENCE, log=print,
-                camera_transform=None) -> dict:
+def run_realism(
+    scan: str | Path,
+    out_dir: str | Path = "out",
+    scans_dir: str | Path = "scans",
+    twin_path: str | Path | None = None,
+    max_side: int = MAX_SIDE,
+    max_frames: int = MAX_FRAMES,
+    png_frames: int = PNG_FRAMES,
+    min_confidence: int = MIN_CONFIDENCE,
+    log=print,
+    camera_transform=None,
+) -> dict:
     """Score the held-out frames of a scan against the twin and write out/eval/<room>_realism.json and .png.
     Raises RealismError when no honest measurement can be made. Returns the report dict (with `path`, `png`)."""
     if type(max_side) is not int or max_side < 16 or type(max_frames) is not int or max_frames < 1:
@@ -382,8 +419,7 @@ def run_realism(scan: str | Path, out_dir: str | Path = "out", scans_dir: str | 
             transform = np.asarray(camera_transform, dtype=float)
         except (TypeError, ValueError) as e:
             raise RealismError("camera_transform must be a finite 4x4 transform") from e
-        if transform.shape != (4, 4) or not np.isfinite(transform).all() or not np.allclose(
-                transform[3], [0, 0, 0, 1]):
+        if transform.shape != (4, 4) or not np.isfinite(transform).all() or not np.allclose(transform[3], [0, 0, 0, 1]):
             raise RealismError("camera_transform must be a finite 4x4 homogeneous transform")
     scan_dir = resolve_scan(scan, scans_dir)
     mdir = manifest_dir(scan_dir)
@@ -395,8 +431,10 @@ def run_realism(scan: str | Path, out_dir: str | Path = "out", scans_dir: str | 
     heldout = [f for f in manifest.frames if f.split == "heldout"]
     train = [f for f in manifest.frames if f.split != "heldout"]
     if not heldout:
-        raise RealismError(f"{mdir / rgbd.MANIFEST_NAME} has no held-out frame ({len(train)} train frames only); "
-                           f"training frames cannot be used as evidence")
+        raise RealismError(
+            f"{mdir / rgbd.MANIFEST_NAME} has no held-out frame ({len(train)} train frames only); "
+            f"training frames cannot be used as evidence"
+        )
     used = _pick(heldout, max_frames)
     frames = [load_frame(manifest, f, max_side, min_confidence) for f in used]
     if transform is not None:
@@ -421,11 +459,19 @@ def run_realism(scan: str | Path, out_dir: str | Path = "out", scans_dir: str | 
         "scan_dir": str(scan_dir),
         "twin_source": twin_source,
         "geometry_source": twin.get("geometry_source"),
-        "frames": {"manifest": str(mdir / rgbd.MANIFEST_NAME), "manifest_sha256": sha256_file(mdir / rgbd.MANIFEST_NAME),
-                   "total": len(manifest.frames), "heldout": len(heldout), "scored": ids,
-                   "train_excluded": len(train), "working_size_hw": list(size)},
-        "masks": {"invalid_depth": f"reference depth not finite, 0, or confidence < {min_confidence}",
-                  "robot": "hidden in the twin render; the recorded frames contain no robot, so no robot mask"},
+        "frames": {
+            "manifest": str(mdir / rgbd.MANIFEST_NAME),
+            "manifest_sha256": sha256_file(mdir / rgbd.MANIFEST_NAME),
+            "total": len(manifest.frames),
+            "heldout": len(heldout),
+            "scored": ids,
+            "train_excluded": len(train),
+            "working_size_hw": list(size),
+        },
+        "masks": {
+            "invalid_depth": f"reference depth not finite, 0, or confidence < {min_confidence}",
+            "robot": "hidden in the twin render; the recorded frames contain no robot, so no robot mask",
+        },
         "scope": SCOPE,
         "realism": real["realism"],
         "control": {"kind": "misaligned_pose", "shift_m": SHIFT_M, "yaw_deg": YAW_DEG, "realism": control["realism"]},
@@ -439,13 +485,14 @@ def run_realism(scan: str | Path, out_dir: str | Path = "out", scans_dir: str | 
     else:
         r, c = real["realism"], control["realism"]
         rises = {k: (r[k] is not None and c[k] is not None and c[k] > r[k]) for k in ("depth_l1_m", "rgb_mae")}
-        report["alignment_check"] = {"error_rises_under_misalignment": rises,
-                                     "passed": bool(rises["depth_l1_m"])}
+        report["alignment_check"] = {"error_rises_under_misalignment": rises, "passed": bool(rises["depth_l1_m"])}
         report["valid"] = bool(rises["depth_l1_m"])
         if not report["valid"]:
-            report["reason"] = (f"depth error did not rise when the camera was moved {SHIFT_M} m and turned {YAW_DEG} "
-                                f"degrees (real {r['depth_l1_m']}, control {c['depth_l1_m']}): the poses or the twin's "
-                                f"frame are off, so these numbers must not be quoted")
+            report["reason"] = (
+                f"depth error did not rise when the camera was moved {SHIFT_M} m and turned {YAW_DEG} "
+                f"degrees (real {r['depth_l1_m']}, control {c['depth_l1_m']}): the poses or the twin's "
+                f"frame are off, so these numbers must not be quoted"
+            )
     path = eval_dir / f"{stem}.json"
     report["path"] = str(path)
     png = None
@@ -484,10 +531,12 @@ def summary(report: dict) -> str:
         return "n/a" if v is None or (isinstance(v, float) and math.isnan(v)) else f"{v:.{nd}f}"
 
     c = report["control"]["realism"]
-    lines = [f"realism {report['room_id']}: {r['frames']} held-out frame(s), depth L1 {f(r['depth_l1_m'])} m, "
-             f"RGB MAE {f(r['rgb_mae'])}, 1-SSIM {f(r['rgb_one_minus_ssim'])}",
-             f"control (camera moved {SHIFT_M} m, turned {YAW_DEG} deg): depth L1 {f(c['depth_l1_m'])} m, "
-             f"RGB MAE {f(c['rgb_mae'])}"]
+    lines = [
+        f"realism {report['room_id']}: {r['frames']} held-out frame(s), depth L1 {f(r['depth_l1_m'])} m, "
+        f"RGB MAE {f(r['rgb_mae'])}, 1-SSIM {f(r['rgb_one_minus_ssim'])}",
+        f"control (camera moved {SHIFT_M} m, turned {YAW_DEG} deg): depth L1 {f(c['depth_l1_m'])} m, "
+        f"RGB MAE {f(c['rgb_mae'])}",
+    ]
     if not report["valid"]:
         lines.append(f"NOT VALID: {report['reason']}")
     return "\n".join(lines)
@@ -499,8 +548,13 @@ METRICS = ("depth_l1_m", "rgb_mae", "rgb_one_minus_ssim", "n_depth", "n_rgb", "f
 def measure(job_dir: Path, bundle: dict, twin: dict, log=print) -> dict:
     """The worker's optional realism stage: score the job's uploaded held-out frames against its compiled twin and
     return the status block the job records. Never raises: a failure is recorded as state "error"."""
-    status = {"state": "not_measured", "metrics": None, "consumed": False, "preview": False,
-              "reason": "No RGB-D frames uploaded."}
+    status = {
+        "state": "not_measured",
+        "metrics": None,
+        "consumed": False,
+        "preview": False,
+        "reason": "No RGB-D frames uploaded.",
+    }
     frames_dir = job_dir / "frames"
     if not frames_dir.is_dir():
         return status
@@ -521,17 +575,24 @@ def measure(job_dir: Path, bundle: dict, twin: dict, log=print) -> dict:
         transform = np.eye(4)
         if "arkit_world_to_room" in bundle:
             transform = np.asarray(bundle["arkit_world_to_room"]) @ np.linalg.inv(manifest.arkit_world_to_room)
-        alignment = {"source_room_id": source_id, "manifest_room_id": manifest.room_id,
-                     "association": "matching_room_id" if source_id else "uploaded_together",
-                     "manifest_room_to_twin": transform.tolist()}
+        alignment = {
+            "source_room_id": source_id,
+            "manifest_room_id": manifest.room_id,
+            "association": "matching_room_id" if source_id else "uploaded_together",
+            "manifest_room_to_twin": transform.tolist(),
+        }
         (output / "alignment.json").write_text(json.dumps(alignment, indent=2), encoding="utf-8")
         twin_path = output / "twin.json"
         twin_path.write_text(json.dumps(twin, indent=2), encoding="utf-8")
         report = run_realism(job_dir, out_dir=output, twin_path=twin_path, camera_transform=transform, log=log)
-        status.update(consumed=True, state="measured" if report["valid"] else "invalid",
-                      reason=None if report["valid"] else "The camera-offset control did not increase depth error.",
-                      preview=bool(report["png"]), frame_count=len(report["frames"]["scored"]),
-                      association=alignment["association"])
+        status.update(
+            consumed=True,
+            state="measured" if report["valid"] else "invalid",
+            reason=None if report["valid"] else "The camera-offset control did not increase depth error.",
+            preview=bool(report["png"]),
+            frame_count=len(report["frames"]["scored"]),
+            association=alignment["association"],
+        )
         if report["valid"]:
             status["metrics"] = {key: report["realism"][key] for key in METRICS}
         if report["png"]:

@@ -22,8 +22,14 @@ from arrival.jobs.nebius import JOB_SETTINGS, STORE_SETTINGS
 
 MIN_PYTHON = (3, 11)
 # import name -> distribution name, for the dependencies in pyproject.toml
-CORE = {"numpy": "numpy", "pyarrow": "pyarrow", "yaml": "pyyaml", "PIL": "pillow", "imageio": "imageio",
-        "imageio_ffmpeg": "imageio-ffmpeg"}
+CORE = {
+    "numpy": "numpy",
+    "pyarrow": "pyarrow",
+    "yaml": "pyyaml",
+    "PIL": "pillow",
+    "imageio": "imageio",
+    "imageio_ffmpeg": "imageio-ffmpeg",
+}
 
 NEBIUS_PURPOSES = {
     "NEBIUS_IAM_TOKEN": "Nebius Serverless AI Jobs access token (fanout --backend nebius)",
@@ -50,7 +56,7 @@ TOKEN_FACTORY_MODELS = (
     ("NEMOTRON_OMNI_MODEL", "small-object detection in scan frames"),
 )
 FREE_WARN_GIB, FREE_FAIL_GIB = 2.0, 0.25
-GIB = 1024 ** 3
+GIB = 1024**3
 REPO = Path(__file__).resolve().parents[1]
 
 
@@ -58,6 +64,7 @@ REPO = Path(__file__).resolve().parents[1]
 class Check:
     """One line of the doctor's report: what was checked, its status (ok, warn, fail or info) and a human-readable
     detail."""
+
     name: str
     status: str  # ok | warn | fail | info
     detail: str
@@ -77,7 +84,9 @@ def check_python(version_info: tuple[int, ...] | None = None) -> Check:
     micro = v[2] if len(v) > 2 else 0
     ok = (major, minor) >= MIN_PYTHON
     text = f"{major}.{minor}.{micro} on {platform.system()} {platform.machine()}"
-    return Check("python", "ok" if ok else "fail", text if ok else f"{text}; needs {MIN_PYTHON[0]}.{MIN_PYTHON[1]} or newer")
+    return Check(
+        "python", "ok" if ok else "fail", text if ok else f"{text}; needs {MIN_PYTHON[0]}.{MIN_PYTHON[1]} or newer"
+    )
 
 
 def check_core(core_deps: dict[str, str] | None = None) -> list[Check]:
@@ -102,7 +111,11 @@ def check_mujoco() -> Check:
     try:
         import mujoco
     except ImportError:
-        return Check("mujoco", "warn", "not installed; sim, eval and work need it: pip install -e '.[sim]' (demo and serve do not)")
+        return Check(
+            "mujoco",
+            "warn",
+            "not installed; sim, eval and work need it: pip install -e '.[sim]' (demo and serve do not)",
+        )
     except Exception as e:  # noqa: BLE001 - a broken native library raises more than ImportError
         err = f"{type(e).__name__}: {e}" if str(e) else type(e).__name__
         return Check("mujoco", "fail", f"installed but does not import: {err}")
@@ -176,12 +189,16 @@ def check_ffmpeg(exe: str | None = None) -> Check:
         if not exe or not Path(exe).exists():
             exe, source = shutil.which("ffmpeg"), "PATH"
         if not exe:
-            return Check("ffmpeg", "fail", "no ffmpeg found (imageio-ffmpeg ships one: pip install -e .); videos need it")
+            return Check(
+                "ffmpeg", "fail", "no ffmpeg found (imageio-ffmpeg ships one: pip install -e .); videos need it"
+            )
     elif not Path(exe).exists():
         return Check("ffmpeg", "fail", f"no ffmpeg found at {exe}")
 
     try:
-        r = subprocess.run([exe, "-version"], capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=10)
+        r = subprocess.run(
+            [exe, "-version"], capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=10
+        )
         first = (r.stdout or "").splitlines()[0] if r.returncode == 0 and r.stdout else ""
     except (OSError, subprocess.SubprocessError):
         first = ""
@@ -233,14 +250,24 @@ def check_env(environ: dict[str, str] | None = None, env_files: list[Path] | Non
         elif from_file(name):
             out.append(Check(name, "ok", f"set in {in_file[name].name} (read by the module that needs it)"))
         elif name in in_file:
-            out.append(Check(name, "info", f"not set: {in_file[name].name} has it, but ARRIVAL_DOTENV=0 turns "
-                                           f".env files off (optional: {purpose})"))
+            out.append(
+                Check(
+                    name,
+                    "info",
+                    f"not set: {in_file[name].name} has it, but ARRIVAL_DOTENV=0 turns "
+                    f".env files off (optional: {purpose})",
+                )
+            )
         else:
             out.append(Check(name, "info", f"not set (optional: {purpose})"))
     if environ.get("TOKEN_FACTORY_API_KEY") or from_file("TOKEN_FACTORY_API_KEY"):
         for name, purpose in TOKEN_FACTORY_MODELS:
             if not (environ.get(name) or from_file(name)):
-                out.append(Check(name, "warn", f"not set, so {purpose} falls back offline even with the key (see .env.example)"))
+                out.append(
+                    Check(
+                        name, "warn", f"not set, so {purpose} falls back offline even with the key (see .env.example)"
+                    )
+                )
     return out
 
 
@@ -277,9 +304,16 @@ def check_disk(out_dir: str | Path = "out") -> Check:
     return Check("disk", "ok", text)
 
 
-def run_checks(out_dir: str | Path = "out", environ: dict[str, str] | None = None, env_files: list[Path] | None = None) -> list[Check]:
-    return ([check_python()] + check_core() + [check_mujoco(), check_rendering(), check_ffmpeg()]
-            + check_env(environ, env_files) + [check_disk(Path(out_dir))])
+def run_checks(
+    out_dir: str | Path = "out", environ: dict[str, str] | None = None, env_files: list[Path] | None = None
+) -> list[Check]:
+    return (
+        [check_python()]
+        + check_core()
+        + [check_mujoco(), check_rendering(), check_ffmpeg()]
+        + check_env(environ, env_files)
+        + [check_disk(Path(out_dir))]
+    )
 
 
 def exit_code(checks: list[Check]) -> int:

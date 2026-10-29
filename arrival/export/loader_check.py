@@ -27,8 +27,15 @@ TS_TOL = 1e-4  # seconds, same as validate.py and LeRobot's timestamp sync check
 STAT_RTOL, STAT_ATOL = 1e-3, 1e-4
 CONST_STD = 1e-8
 ARROW = {"float32": pa.float32(), "int64": pa.int64(), "bool": pa.bool_()}
-NEEDED_META = ("info.json", "modality.json", "tasks.jsonl", "episodes.jsonl", "episodes_stats.jsonl", "stats.json",
-               "embodiment.json")
+NEEDED_META = (
+    "info.json",
+    "modality.json",
+    "tasks.jsonl",
+    "episodes.jsonl",
+    "episodes_stats.jsonl",
+    "stats.json",
+    "embodiment.json",
+)
 STAT_KEYS = ("mean", "std", "min", "max")
 Q = (0.01, 0.99)
 MAX_ERRORS = 60
@@ -102,8 +109,9 @@ def _read_meta(meta: Path, f: _Findings) -> dict | None:
     return None if f.errors else parsed
 
 
-def _decode_videos(root: Path, cams: dict, episodes: list[dict], sample: set, video_tpl: str, size: int, fps,
-                   f: _Findings) -> int:
+def _decode_videos(
+    root: Path, cams: dict, episodes: list[dict], sample: set, video_tpl: str, size: int, fps, f: _Findings
+) -> int:
     """Check that every episode has an mp4 per camera, and decode the sampled episodes' videos to compare frame
     count, fps and frame shape with the metadata. Returns how many videos were decoded."""
     n_decoded = 0
@@ -148,11 +156,17 @@ def check_loader(root: str | Path) -> dict:
 
     # what the loader would train on must be physics-checked, not scripted placeholder motion
     if info.get("arrival_physically_valid") is not True:
-        f.err("placeholder", "refusing: info.arrival_physically_valid is not true; this is the scripted placeholder "
-              "demo dataset, not physics-checked sim data (generate one with 'python -m arrival sim')")
+        f.err(
+            "placeholder",
+            "refusing: info.arrival_physically_valid is not true; this is the scripted placeholder "
+            "demo dataset, not physics-checked sim data (generate one with 'python -m arrival sim')",
+        )
     if emb.get("joints_are_placeholder") is not False:
-        f.err("placeholder", "refusing: embodiment.joints_are_placeholder is not false; the arm joints are "
-              "placeholder zeros, do not fine-tune on this dataset")
+        f.err(
+            "placeholder",
+            "refusing: embodiment.joints_are_placeholder is not false; the arm joints are "
+            "placeholder zeros, do not fine-tune on this dataset",
+        )
     if f.errors:
         return out
 
@@ -185,7 +199,9 @@ def check_loader(root: str | Path) -> dict:
                 else:
                     base_a = (st, en)
     if arm_s is None or arm_a is None:
-        f.err("modality_slices", "modality.json needs state.single_arm and action.single_arm for the relative arm action")
+        f.err(
+            "modality_slices", "modality.json needs state.single_arm and action.single_arm for the relative arm action"
+        )
     elif arm_s[1] - arm_s[0] != arm_a[1] - arm_a[0]:
         f.err("modality_slices", "state.single_arm and action.single_arm have different widths")
         arm_s = arm_a = None
@@ -195,8 +211,11 @@ def check_loader(root: str | Path) -> dict:
     base_ok = False
     if has_base:
         if base_s != BASE_SLICE or base_a != BASE_SLICE or s_dim != BASE_SLICE[1] or a_dim != BASE_SLICE[1]:
-            f.err("base_slice", f"modality base slices must be [{BASE_SLICE[0]}, {BASE_SLICE[1]}) in both state and action "
-                  f"with 11-float rows, got state {base_s}, action {base_a}, dims {s_dim}/{a_dim}")
+            f.err(
+                "base_slice",
+                f"modality base slices must be [{BASE_SLICE[0]}, {BASE_SLICE[1]}) in both state and action "
+                f"with 11-float rows, got state {base_s}, action {base_a}, dims {s_dim}/{a_dim}",
+            )
         else:
             base_ok = True
     elif emb.get("dof_base"):
@@ -275,8 +294,11 @@ def check_loader(root: str | Path) -> dict:
             off = np.abs(ts - np.arange(ts.size) / fps)
             if not (off <= TS_TOL).all():
                 k = int(np.argmax(~(off <= TS_TOL)))
-                f.err("timestamp_fps", f"{name}: timestamp row {k} is {ts[k]:.6f}s, expected {k / fps:.6f}s "
-                      f"(frame_index / info.fps={fps})")
+                f.err(
+                    "timestamp_fps",
+                    f"{name}: timestamp row {k} is {ts[k]:.6f}s, expected {k / fps:.6f}s "
+                    f"(frame_index / info.fps={fps})",
+                )
         # action horizon: starts in the last HORIZON-1 frames read past the end and are padded
         windows += t.num_rows
         if t.num_rows < HORIZON:
@@ -290,8 +312,10 @@ def check_loader(root: str | Path) -> dict:
         s = np.asarray(t.column("observation.state").to_pylist(), dtype=np.float64)
         a = np.asarray(t.column("action").to_pylist(), dtype=np.float64)
         if s.ndim != 2 or a.ndim != 2 or s.shape[1] != s_dim or a.shape[1] != a_dim:
-            f.err("schema", f"{name}: state {s.shape} / action {a.shape} do not match info.features dims "
-                  f"({s_dim}, {a_dim})")
+            f.err(
+                "schema",
+                f"{name}: state {s.shape} / action {a.shape} do not match info.features dims ({s_dim}, {a_dim})",
+            )
             continue
         fin = True
         for c, x in (("observation.state", s), ("action", a)):
@@ -303,27 +327,33 @@ def check_loader(root: str | Path) -> dict:
             continue
         if base_ok:
             for c, x in (("observation.state", s), ("action", a)):
-                b = x[:, BASE_SLICE[0]:BASE_SLICE[1]]
+                b = x[:, BASE_SLICE[0] : BASE_SLICE[1]]
                 if not base_actuated:
                     if len(b) and float(np.ptp(b, axis=0).max()) > BASE_HOLD_TOL:
-                        f.err("base_fixed_moves", f"{name}: {c} base moves (range "
-                              f"{float(np.ptp(b, axis=0).max()):.4f}) but embodiment.base_actuated is false")
+                        f.err(
+                            "base_fixed_moves",
+                            f"{name}: {c} base moves (range "
+                            f"{float(np.ptp(b, axis=0).max()):.4f}) but embodiment.base_actuated is false",
+                        )
                 elif len(b) > 1:
                     v = np.linalg.norm(np.diff(b[:, :2], axis=0), axis=1) * fps
                     w = np.abs(np.diff(b[:, 2])) * fps
                     if v.max() > BASE_SPEED + BASE_SPEED_TOL or w.max() > BASE_TURN + BASE_SPEED_TOL:
-                        f.err("base_speed", f"{name}: {c} base moves {v.max():.3f} m/s and {w.max():.3f} rad/s, over the "
-                              f"{BASE_SPEED} m/s and {BASE_TURN} rad/s the writer limits it to (a teleport, not a drive)")
+                        f.err(
+                            "base_speed",
+                            f"{name}: {c} base moves {v.max():.3f} m/s and {w.max():.3f} rad/s, over the "
+                            f"{BASE_SPEED} m/s and {BASE_TURN} rad/s the writer limits it to (a teleport, not a drive)",
+                        )
         if arm_s and arm_a:
             # relative arm action as the loader builds it: action[t+k] - state[t], tail padded with the last action
             idx = np.minimum(np.arange(len(s))[:, None] + np.arange(HORIZON)[None, :], len(s) - 1)
-            rel = a[idx][:, :, arm_a[0]:arm_a[1]] - s[:, None, arm_s[0]:arm_s[1]]
+            rel = a[idx][:, :, arm_a[0] : arm_a[1]] - s[:, None, arm_s[0] : arm_s[1]]
             rel_min, rel_max = min(rel_min, float(rel.min())), max(rel_max, float(rel.max()))
         for c, x in (("observation.state", s), ("action", a)):
             d = acc[c]
             d["n"] += len(x)
             d["sum"] = d["sum"] + x.sum(0)
-            d["sq"] = d["sq"] + (x ** 2).sum(0)
+            d["sq"] = d["sq"] + (x**2).sum(0)
             d["min"] = x.min(0) if d["min"] is None else np.minimum(d["min"], x.min(0))
             d["max"] = x.max(0) if d["max"] is None else np.maximum(d["max"], x.max(0))
             d["rows"].append(x.astype(np.float32))
@@ -335,28 +365,39 @@ def check_loader(root: str | Path) -> dict:
         if not d["n"] or c in nonfinite_cols:
             continue
         mean = d["sum"] / d["n"]
-        std = np.sqrt(np.maximum(d["sq"] / d["n"] - mean ** 2, 0.0))
+        std = np.sqrt(np.maximum(d["sq"] / d["n"] - mean**2, 0.0))
         q = np.quantile(np.concatenate(d["rows"]).astype(np.float64), Q, axis=0)
         mine = {"mean": mean, "std": std, "min": d["min"], "max": d["max"], "q01": q[0], "q99": q[1]}
         out_stats[c] = {k: v.tolist() for k, v in mine.items()}
         const = np.flatnonzero(std <= CONST_STD)
-        if base_ok and base_actuated is False:  # a parked base is constant by construction: say so once, not as a defect
+        if (
+            base_ok and base_actuated is False
+        ):  # a parked base is constant by construction: say so once, not as a defect
             parked = [i for i in const.tolist() if BASE_SLICE[0] <= i < BASE_SLICE[1]]
             const = np.asarray([i for i in const.tolist() if i not in parked], dtype=int)
             if parked:
-                f.warn("fixed_base_constant", f"{c} dims {parked} are the parked base pose and constant (std 0): train "
-                       f"with configs/gr00t/arrival_panda_config.py (arm and gripper only), not the mobile config")
+                f.warn(
+                    "fixed_base_constant",
+                    f"{c} dims {parked} are the parked base pose and constant (std 0): train "
+                    f"with configs/gr00t/arrival_panda_config.py (arm and gripper only), not the mobile config",
+                )
         if len(const):
-            f.warn("constant_dim", f"{c} dims {const.tolist()} are constant (std 0); std normalisation divides by it, "
-                   f"so the loader must clamp it")
+            f.warn(
+                "constant_dim",
+                f"{c} dims {const.tolist()} are constant (std 0); std normalisation divides by it, "
+                f"so the loader must clamp it",
+            )
         got = stats.get(c)
         if not got:
             f.err("stats_missing", f"stats.json has no entry for {c}")
             continue
         if not {"q01", "q99"} <= set(got):
-            f.warn("stats_no_quantiles", f"stats.json {c} has no q01/q99 (written before the writers stored them); "
-                   f"GR00T normalises with them, so regenerate with gr00t/data/stats.py or re-run the sim; the "
-                   f"recomputed values are in the --json report")
+            f.warn(
+                "stats_no_quantiles",
+                f"stats.json {c} has no q01/q99 (written before the writers stored them); "
+                f"GR00T normalises with them, so regenerate with gr00t/data/stats.py or re-run the sim; the "
+                f"recomputed values are in the --json report",
+            )
         for k in (*STAT_KEYS, "q01", "q99"):
             if k not in got:
                 if k not in ("q01", "q99"):
@@ -368,11 +409,17 @@ def check_loader(root: str | Path) -> dict:
                 continue
             zero = np.flatnonzero((g <= CONST_STD) & (std > CONST_STD)) if k == "std" else []
             if len(zero):
-                f.err("stats_std_zero", f"stats.json {c}.std is 0 on dims {zero.tolist()} that move in the parquet "
-                      f"(normalisation would divide by zero)")
+                f.err(
+                    "stats_std_zero",
+                    f"stats.json {c}.std is 0 on dims {zero.tolist()} that move in the parquet "
+                    f"(normalisation would divide by zero)",
+                )
             elif not _close(g, mine[k]):
-                f.err("stats_mismatch", f"stats.json {c}.{k} differs from the parquet recompute "
-                      f"(max abs diff {float(np.abs(g - mine[k]).max()):.3g})")
+                f.err(
+                    "stats_mismatch",
+                    f"stats.json {c}.{k} differs from the parquet recompute "
+                    f"(max abs diff {float(np.abs(g - mine[k]).max()):.3g})",
+                )
     if len(ep_stats) != n_ep:
         f.err("stats_mismatch", f"episodes_stats.jsonl has {len(ep_stats)} rows, episodes.jsonl {n_ep}")
     for row in ep_stats:
@@ -380,17 +427,28 @@ def check_loader(root: str | Path) -> dict:
             for k in STAT_KEYS:
                 g = (row.get("stats", {}).get(c) or {}).get(k)
                 if g is None or not _close(np.asarray(g, dtype=np.float64), loc[k]):
-                    f.err("stats_mismatch", f"episodes_stats.jsonl episode {row.get('episode_index')} {c}.{k} "
-                          f"differs from the parquet recompute")
+                    f.err(
+                        "stats_mismatch",
+                        f"episodes_stats.jsonl episode {row.get('episode_index')} {c}.{k} "
+                        f"differs from the parquet recompute",
+                    )
 
     # videos: an mp4 per episode and camera; decode the first, middle and last episode only
     n_decoded = _decode_videos(root, cams, episodes, sample, video_tpl, size, fps, f)
 
     out["stats"] = out_stats
     out["info"] = {
-        "episodes": n_ep, "frames": frames, "fps": fps, "state_dim": s_dim, "action_dim": a_dim,
-        "horizon": HORIZON, "windows": windows, "padded_windows": padded, "short_episodes": short,
-        "videos_decoded": n_decoded, "cameras": sorted(cams),
+        "episodes": n_ep,
+        "frames": frames,
+        "fps": fps,
+        "state_dim": s_dim,
+        "action_dim": a_dim,
+        "horizon": HORIZON,
+        "windows": windows,
+        "padded_windows": padded,
+        "short_episodes": short,
+        "videos_decoded": n_decoded,
+        "cameras": sorted(cams),
         "base": None if not has_base else ("mobile" if base_actuated else "fixed"),
         "relative_action_range": [rel_min, rel_max] if np.isfinite(rel_min) else None,
     }
@@ -404,12 +462,16 @@ def format_report(root, res: dict) -> str:
     i = res["info"]
     lines = [f"loader check: {root}: {'PASS' if res['ok'] else 'FAIL'}"]
     if i:
-        lines.append(f"  {i['episodes']} episodes, {i['frames']} frames @ {i['fps']} fps, state {i['state_dim']}d / "
-                     f"action {i['action_dim']}d, cameras {', '.join(i['cameras'])}, {i['videos_decoded']} mp4s decoded"
-                     + (f", {i['base']} base in state/action[8:11]" if i.get("base") else ""))
+        lines.append(
+            f"  {i['episodes']} episodes, {i['frames']} frames @ {i['fps']} fps, state {i['state_dim']}d / "
+            f"action {i['action_dim']}d, cameras {', '.join(i['cameras'])}, {i['videos_decoded']} mp4s decoded"
+            + (f", {i['base']} base in state/action[8:11]" if i.get("base") else "")
+        )
         pct = 100 * i["padded_windows"] / max(i["windows"], 1)
-        lines.append(f"  {i['horizon']}-step action windows: {i['padded_windows']}/{i['windows']} padded at the tail "
-                     f"({pct:.0f}%), {i['short_episodes']} episode(s) shorter than the horizon")
+        lines.append(
+            f"  {i['horizon']}-step action windows: {i['padded_windows']}/{i['windows']} padded at the tail "
+            f"({pct:.0f}%), {i['short_episodes']} episode(s) shorter than the horizon"
+        )
         if i["relative_action_range"]:
             lo, hi = i["relative_action_range"]
             lines.append(f"  relative arm action (action - state): finite, range [{lo:.3f}, {hi:.3f}] rad")

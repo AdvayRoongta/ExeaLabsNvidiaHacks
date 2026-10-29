@@ -25,10 +25,19 @@ class MockPolicyServer(ThreadingHTTPServer):
     """An offline stand-in for a GR00T policy server on the protocol's /act and /health routes. `mode` picks the replies
     (hold the pose, hold with noise, or fail_after_n: answer `fail_after` requests and then return HTTP 500), `chunk`
     the steps per reply. It never looks at the images or instruction."""
+
     daemon_threads = True
 
-    def __init__(self, port: int = 0, mode: str = "hold", chunk: int = 8, seed: int = 0, noise_std: float = 0.01,
-                 fail_after: int = 0, host: str = "127.0.0.1"):
+    def __init__(
+        self,
+        port: int = 0,
+        mode: str = "hold",
+        chunk: int = 8,
+        seed: int = 0,
+        noise_std: float = 0.01,
+        fail_after: int = 0,
+        host: str = "127.0.0.1",
+    ):
         if mode not in MODES:
             raise ValueError(f"mode must be one of {MODES}")
         if isinstance(chunk, bool) or not isinstance(chunk, (int, np.integer)) or chunk < 1:
