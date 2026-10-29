@@ -7,7 +7,7 @@ import math
 import pytest
 from conftest import REPO
 
-from arrival.catalog.fixtures import DEFAULT_SIZES, FIXTURE_MAP, default_size
+from arrival.catalog.categories import DEFAULT_SIZES, FIXTURE_MAP, default_size
 from arrival.scan import roomplan
 from arrival.twin.compile import compile_twin, layout_dict
 

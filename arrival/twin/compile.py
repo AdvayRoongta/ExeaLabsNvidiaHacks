@@ -9,8 +9,14 @@ from pathlib import Path
 
 import yaml
 
-from arrival.catalog.fixtures import default_config_name, fixture_type
-from arrival.catalog.objects import ROOM_OBJECTS, catalog_id, room_kind, sample_size
+from arrival.catalog.categories import (
+    ROOM_OBJECTS,
+    catalog_id,
+    default_config_name,
+    fixture_type,
+    room_kind,
+    sample_size,
+)
 from arrival.provenance import OBJECT_PROVENANCE, note_seed, object_counts, stamp_twin
 
 COUNTER_DEPTH = 0.65

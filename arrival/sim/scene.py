@@ -8,7 +8,7 @@ from __future__ import annotations
 import math
 import random
 
-from arrival.catalog.objects import object_spec
+from arrival.catalog.categories import object_spec
 from arrival.scan.bundle import ScanBundleError
 from arrival.scan.roomplan import PORTALS, segment_distance
 from arrival.sim import people, robot

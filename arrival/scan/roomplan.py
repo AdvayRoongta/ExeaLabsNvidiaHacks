@@ -7,7 +7,7 @@ import math
 import re
 from pathlib import Path
 
-from arrival.catalog.fixtures import default_size
+from arrival.catalog.categories import default_size
 from arrival.provenance import sha256_file
 from arrival.scan.bundle import MAX_COORD_M, MAX_DIM_M, ScanBundleError, is_finite_number, numbers, validate
 

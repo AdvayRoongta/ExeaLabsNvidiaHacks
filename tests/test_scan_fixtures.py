@@ -8,7 +8,7 @@ import pytest
 
 mujoco = pytest.importorskip("mujoco")
 
-from arrival.catalog.fixtures import DEFAULT_SIZES, FIXTURE_MAP  # noqa: E402
+from arrival.catalog.categories import DEFAULT_SIZES, FIXTURE_MAP  # noqa: E402
 from arrival.scan.bundle import load_room  # noqa: E402
 from arrival.sim.geometry import drawer_x, front_stand  # noqa: E402
 from arrival.sim.scene import build_mjcf, part_names  # noqa: E402

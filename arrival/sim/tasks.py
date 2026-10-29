@@ -7,7 +7,7 @@ from __future__ import annotations
 import math
 import random
 
-from arrival.catalog.objects import GRASPABLE, PICKABLE, TABLE_MOVABLE, WIPE_TOOLS
+from arrival.catalog.categories import GRASPABLE, PICKABLE, TABLE_MOVABLE, WIPE_TOOLS
 from arrival.sim.geometry import drawer_x, has_door, has_drawers, is_table
 from arrival.sim.reach import check_task, find_shift
 from arrival.sim.stand import DISHWASHER_SIDE

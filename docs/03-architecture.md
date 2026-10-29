@@ -25,8 +25,7 @@ On the MVP night the later boxes were only modules that raised a named error or 
 | `arrival.scan.four_photo` | Four images → ScanBundle flagged unmeasured |
 | `arrival.twin.compile` | ScanBundle → layout dict + YAML |
 | `arrival.twin.detect` | VLM-based object detection in scan frames |
-| `arrival.catalog.fixtures` | RoomPlan category → RoboCasa fixture type or `box` |
-| `arrival.catalog.objects` | Object label → catalog id |
+| `arrival.catalog.categories` | RoomPlan category → RoboCasa fixture type or `box`, default sizes; object label → catalog id and physical spec |
 | `arrival.tasks.propose` | Tasks, variations, wordings. No network |
 | `arrival.generate.scripted` | Seed trajectories and pose retargets |
 | `arrival.generate.scripted` (`judge`) | Drop attempts that miss the goal |

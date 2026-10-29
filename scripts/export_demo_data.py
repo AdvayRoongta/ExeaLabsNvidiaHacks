@@ -22,7 +22,7 @@ import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from arrival.catalog.objects import OBJECT_SPECS  # noqa: E402
+from arrival.catalog.categories import OBJECT_SPECS  # noqa: E402
 from arrival.scan import bundle as scan_bundle  # noqa: E402
 from arrival.sim import robot  # noqa: E402
 from arrival.sim.collect import SimEnv, run_episode  # noqa: E402

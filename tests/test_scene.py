@@ -9,7 +9,7 @@ import pytest
 
 mujoco = pytest.importorskip("mujoco")
 
-from arrival.catalog.objects import (  # noqa: E402
+from arrival.catalog.categories import (  # noqa: E402
     GRASPABLE,
     HANDLE_HELD,
     OBJECT_SPECS,

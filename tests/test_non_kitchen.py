@@ -10,7 +10,7 @@ import pytest
 
 mujoco = pytest.importorskip("mujoco")
 
-from arrival.catalog.objects import GRASPABLE, ROOM_OBJECTS, TABLE_MOVABLE, catalog_id, room_kind, sample_size  # noqa: E402
+from arrival.catalog.categories import GRASPABLE, ROOM_OBJECTS, TABLE_MOVABLE, catalog_id, room_kind, sample_size  # noqa: E402
 from arrival.scan import roomplan  # noqa: E402
 from arrival.sim.collect import SimEnv, run_episode  # noqa: E402
 from arrival.sim.geometry import is_table  # noqa: E402

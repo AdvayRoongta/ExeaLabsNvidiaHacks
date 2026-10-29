@@ -32,7 +32,7 @@ from pathlib import Path
 
 import numpy as np
 
-from arrival.catalog.objects import OBJECT_SPECS, RIM_HELD, catalog_id
+from arrival.catalog.categories import OBJECT_SPECS, RIM_HELD, catalog_id
 from arrival.scan import rgbd
 
 PROMPT_VERSION = 1

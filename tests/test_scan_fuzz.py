@@ -13,7 +13,7 @@ import random
 import pytest
 import yaml
 
-from arrival.catalog.fixtures import default_size
+from arrival.catalog.categories import default_size
 from arrival.scan import roomplan
 from arrival.scan.bundle import ScanBundleError
 from arrival.tasks.propose import propose

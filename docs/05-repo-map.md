@@ -16,8 +16,7 @@ arrival/scan/bundle.py
 arrival/scan/roomplan.py
 arrival/scan/four_photo.py
 arrival/twin/compile.py
-arrival/catalog/fixtures.py
-arrival/catalog/objects.py
+arrival/catalog/categories.py
 arrival/tasks/propose.py
 arrival/generate/scripted.py
 arrival/generate/mimicgen.py

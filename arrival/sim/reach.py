@@ -18,7 +18,7 @@ from functools import lru_cache
 
 import numpy as np
 
-from arrival.catalog.objects import HANDLE_HELD, RIM_HELD
+from arrival.catalog.categories import HANDLE_HELD, RIM_HELD
 from arrival.sim import ik, menagerie, robot
 from arrival.sim.geometry import drawer_x
 from arrival.sim.robot import HANDLE_ROOT, PAD_BELOW_EEF

@@ -10,7 +10,7 @@ from pathlib import Path
 import mujoco
 import numpy as np
 
-from arrival.catalog.objects import HANDLE_HELD, RIM_HELD, THIN_HELD
+from arrival.catalog.categories import HANDLE_HELD, RIM_HELD, THIN_HELD
 from arrival.provenance import run_record
 from arrival.sim import menagerie, robot
 from arrival.sim.export import STATE_DIM
